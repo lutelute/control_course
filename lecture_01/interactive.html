@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第1回：システムの状態空間表現</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0f1c;
+            --bg-secondary: #111827;
+            --bg-tertiary: #1f2937;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --border-color: #374151;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.7;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            text-align: center;
+            padding: 3rem 0;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 3rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.1);
+        }
+        
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            color: var(--accent-cyan);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .card-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(to bottom, var(--accent-cyan), var(--accent-purple));
+            border-radius: 2px;
+        }
+        
+        .simulation-area {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 300px;
+            border-radius: 8px;
+            background: var(--bg-primary);
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .control-group label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .control-group label span {
+            color: var(--accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--bg-tertiary);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(6, 182, 212, 0.3);
+        }
+        
+        .matrix-display {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-primary);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow-x: auto;
+        }
+        
+        .matrix {
+            display: inline-block;
+            margin: 0.5rem 0;
+        }
+        
+        .matrix-bracket {
+            font-size: 2rem;
+            vertical-align: middle;
+            color: var(--text-secondary);
+        }
+        
+        .matrix-content {
+            display: inline-grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem 1.5rem;
+            vertical-align: middle;
+            padding: 0 0.5rem;
+        }
+        
+        .matrix-content span {
+            text-align: right;
+            color: var(--accent-green);
+        }
+        
+        .equation-label {
+            color: var(--text-secondary);
+            margin-right: 1rem;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .state-trajectory {
+            position: relative;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .legend-color {
+            width: 24px;
+            height: 4px;
+            border-radius: 2px;
+        }
+        
+        .info-box {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 4px solid var(--accent-blue);
+            padding: 1rem 1.5rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1rem 0;
+        }
+        
+        .phase-plane {
+            aspect-ratio: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>第1回：システムの状態空間表現</h1>
+            <p class="subtitle">State Space Representation of Dynamic Systems</p>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="info-box">
+            <strong>学習目標：</strong>物理システムを状態空間表現で記述し、状態変数の時間発展を視覚的に理解する
+        </div>
+        
+        <div class="grid-2">
+            <!-- 質量-ばね-ダンパ系シミュレーション -->
+            <div class="card">
+                <h2 class="card-title">質量-ばね-ダンパ系シミュレーション</h2>
+                <div class="simulation-area">
+                    <canvas id="msdCanvas"></canvas>
+                </div>
+                <div class="controls">
+                    <div class="control-group">
+                        <label>質量 m <span id="mValue">1.0</span> kg</label>
+                        <input type="range" id="massSlider" min="0.5" max="3" step="0.1" value="1">
+                    </div>
+                    <div class="control-group">
+                        <label>ばね定数 k <span id="kValue">2.0</span> N/m</label>
+                        <input type="range" id="springSlider" min="0.5" max="5" step="0.1" value="2">
+                    </div>
+                    <div class="control-group">
+                        <label>減衰係数 c <span id="cValue">0.5</span> Ns/m</label>
+                        <input type="range" id="damperSlider" min="0" max="2" step="0.05" value="0.5">
+                    </div>
+                    <div class="control-group">
+                        <label>初期変位 x₀ <span id="x0Value">1.0</span> m</label>
+                        <input type="range" id="x0Slider" min="-2" max="2" step="0.1" value="1">
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="resetMSD()">リセット</button>
+                    <button class="btn btn-secondary" onclick="toggleMSD()">一時停止</button>
+                </div>
+            </div>
+            
+            <!-- 状態空間表現の表示 -->
+            <div class="card">
+                <h2 class="card-title">状態空間表現</h2>
+                <div class="matrix-display">
+                    <div style="margin-bottom: 1rem;">
+                        <span class="equation-label">状態方程式：</span>
+                        <span style="color: var(--accent-orange);">ẋ = Ax + Bu</span>
+                    </div>
+                    <div>
+                        <span class="matrix-bracket">[</span>
+                        <div class="matrix-content">
+                            <span>ẋ₁</span>
+                            <span></span>
+                            <span>ẋ₂</span>
+                            <span></span>
+                        </div>
+                        <span class="matrix-bracket">]</span>
+                        <span style="color: var(--text-secondary); margin: 0 0.5rem;">=</span>
+                        <span class="matrix-bracket">[</span>
+                        <div class="matrix-content">
+                            <span>0</span>
+                            <span>1</span>
+                            <span id="a21">-2.00</span>
+                            <span id="a22">-0.50</span>
+                        </div>
+                        <span class="matrix-bracket">]</span>
+                        <span class="matrix-bracket">[</span>
+                        <div class="matrix-content">
+                            <span>x₁</span>
+                            <span></span>
+                            <span>x₂</span>
+                            <span></span>
+                        </div>
+                        <span class="matrix-bracket">]</span>
+                    </div>
+                    <div style="margin-top: 1.5rem; color: var(--text-secondary); font-size: 0.9rem;">
+                        <p>x₁ = 位置 [m]</p>
+                        <p>x₂ = 速度 [m/s]</p>
+                        <p style="margin-top: 0.5rem;">A₂₁ = -k/m, A₂₂ = -c/m</p>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem;">
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">
+                        <strong>固有値：</strong> 
+                        <span id="eigenvalues" style="color: var(--accent-purple); font-family: 'JetBrains Mono', monospace;">λ = -0.25 ± 1.39j</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid-2">
+            <!-- 時間応答グラフ -->
+            <div class="card">
+                <h2 class="card-title">時間応答</h2>
+                <div class="simulation-area">
+                    <canvas id="timeResponseCanvas"></canvas>
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #3b82f6;"></div>
+                        <span>位置 x₁(t)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #10b981;"></div>
+                        <span>速度 x₂(t)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 位相平面 -->
+            <div class="card">
+                <h2 class="card-title">位相平面（Phase Plane）</h2>
+                <div class="simulation-area">
+                    <canvas id="phasePlaneCanvas" class="phase-plane"></canvas>
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #f59e0b;"></div>
+                        <span>状態軌道</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ef4444; width: 8px; height: 8px; border-radius: 50%;"></div>
+                        <span>現在の状態</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- RLC回路シミュレーション -->
+        <div class="card" style="margin-top: 2rem;">
+            <h2 class="card-title">RLC回路シミュレーション</h2>
+            <div class="grid-2">
+                <div>
+                    <div class="simulation-area">
+                        <canvas id="rlcCanvas"></canvas>
+                    </div>
+                    <div class="controls">
+                        <div class="control-group">
+                            <label>抵抗 R <span id="RValue">10</span> Ω</label>
+                            <input type="range" id="RSlider" min="1" max="50" step="1" value="10">
+                        </div>
+                        <div class="control-group">
+                            <label>インダクタンス L <span id="LValue">0.1</span> H</label>
+                            <input type="range" id="LSlider" min="0.01" max="0.5" step="0.01" value="0.1">
+                        </div>
+                        <div class="control-group">
+                            <label>静電容量 C <span id="CValue">100</span> μF</label>
+                            <input type="range" id="CSlider" min="10" max="500" step="10" value="100">
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="resetRLC()">リセット</button>
+                        <button class="btn btn-secondary" onclick="applyStep()">ステップ入力</button>
+                    </div>
+                </div>
+                <div>
+                    <div class="matrix-display">
+                        <div style="margin-bottom: 1rem;">
+                            <span class="equation-label">RLC回路の状態方程式：</span>
+                        </div>
+                        <div>
+                            <span class="matrix-bracket">[</span>
+                            <div class="matrix-content">
+                                <span>v̇c</span>
+                                <span></span>
+                                <span>i̇L</span>
+                                <span></span>
+                            </div>
+                            <span class="matrix-bracket">]</span>
+                            <span style="color: var(--text-secondary); margin: 0 0.5rem;">=</span>
+                            <span class="matrix-bracket">[</span>
+                            <div class="matrix-content">
+                                <span>0</span>
+                                <span id="rlcA12">10000</span>
+                                <span id="rlcA21">-10.0</span>
+                                <span id="rlcA22">-100</span>
+                            </div>
+                            <span class="matrix-bracket">]</span>
+                            <span class="matrix-bracket">[</span>
+                            <div class="matrix-content">
+                                <span>vc</span>
+                                <span></span>
+                                <span>iL</span>
+                                <span></span>
+                            </div>
+                            <span class="matrix-bracket">]</span>
+                        </div>
+                        <div style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
+                            <p>vc = コンデンサ電圧 [V]</p>
+                            <p>iL = インダクタ電流 [A]</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // グローバル変数
+        let msdAnimationId = null;
+        let msdRunning = true;
+        let msdTime = 0;
+        let msdHistory = [];
+        
+        // MSD パラメータ
+        let m = 1.0, k = 2.0, c = 0.5, x0 = 1.0;
+        let x1 = x0, x2 = 0;
+        
+        // RLC パラメータ
+        let R = 10, L = 0.1, C_val = 0.0001;
+        let vc = 0, iL = 0;
+        let rlcHistory = [];
+        let rlcTime = 0;
+        let stepInput = 0;
+        
+        // キャンバス取得
+        const msdCanvas = document.getElementById('msdCanvas');
+        const msdCtx = msdCanvas.getContext('2d');
+        const timeCanvas = document.getElementById('timeResponseCanvas');
+        const timeCtx = timeCanvas.getContext('2d');
+        const phaseCanvas = document.getElementById('phasePlaneCanvas');
+        const phaseCtx = phaseCanvas.getContext('2d');
+        const rlcCanvas = document.getElementById('rlcCanvas');
+        const rlcCtx = rlcCanvas.getContext('2d');
+        
+        // 高DPI対応
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+        }
+        
+        function initCanvases() {
+            setupCanvas(msdCanvas, msdCtx);
+            setupCanvas(timeCanvas, timeCtx);
+            setupCanvas(phaseCanvas, phaseCtx);
+            setupCanvas(rlcCanvas, rlcCtx);
+        }
+        
+        // スライダーイベント
+        document.getElementById('massSlider').addEventListener('input', (e) => {
+            m = parseFloat(e.target.value);
+            document.getElementById('mValue').textContent = m.toFixed(1);
+            updateMatrixDisplay();
+        });
+        
+        document.getElementById('springSlider').addEventListener('input', (e) => {
+            k = parseFloat(e.target.value);
+            document.getElementById('kValue').textContent = k.toFixed(1);
+            updateMatrixDisplay();
+        });
+        
+        document.getElementById('damperSlider').addEventListener('input', (e) => {
+            c = parseFloat(e.target.value);
+            document.getElementById('cValue').textContent = c.toFixed(2);
+            updateMatrixDisplay();
+        });
+        
+        document.getElementById('x0Slider').addEventListener('input', (e) => {
+            x0 = parseFloat(e.target.value);
+            document.getElementById('x0Value').textContent = x0.toFixed(1);
+        });
+        
+        document.getElementById('RSlider').addEventListener('input', (e) => {
+            R = parseFloat(e.target.value);
+            document.getElementById('RValue').textContent = R;
+            updateRLCMatrix();
+        });
+        
+        document.getElementById('LSlider').addEventListener('input', (e) => {
+            L = parseFloat(e.target.value);
+            document.getElementById('LValue').textContent = L.toFixed(2);
+            updateRLCMatrix();
+        });
+        
+        document.getElementById('CSlider').addEventListener('input', (e) => {
+            C_val = parseFloat(e.target.value) * 1e-6;
+            document.getElementById('CValue').textContent = (C_val * 1e6).toFixed(0);
+            updateRLCMatrix();
+        });
+        
+        function updateMatrixDisplay() {
+            document.getElementById('a21').textContent = (-k/m).toFixed(2);
+            document.getElementById('a22').textContent = (-c/m).toFixed(2);
+            
+            // 固有値計算
+            const tr = -c/m;
+            const det = k/m;
+            const disc = tr*tr - 4*det;
+            
+            let eigenStr;
+            if (disc >= 0) {
+                const l1 = (tr + Math.sqrt(disc)) / 2;
+                const l2 = (tr - Math.sqrt(disc)) / 2;
+                eigenStr = `λ₁ = ${l1.toFixed(2)}, λ₂ = ${l2.toFixed(2)}`;
+            } else {
+                const real = tr / 2;
+                const imag = Math.sqrt(-disc) / 2;
+                eigenStr = `λ = ${real.toFixed(2)} ± ${imag.toFixed(2)}j`;
+            }
+            document.getElementById('eigenvalues').textContent = eigenStr;
+        }
+        
+        function updateRLCMatrix() {
+            document.getElementById('rlcA12').textContent = (1/C_val).toFixed(0);
+            document.getElementById('rlcA21').textContent = (-1/L).toFixed(1);
+            document.getElementById('rlcA22').textContent = (-R/L).toFixed(0);
+        }
+        
+        // MSD アニメーション
+        function drawMSD() {
+            const w = msdCanvas.getBoundingClientRect().width;
+            const h = msdCanvas.getBoundingClientRect().height;
+            
+            msdCtx.fillStyle = '#0a0f1c';
+            msdCtx.fillRect(0, 0, w, h);
+            
+            const centerY = h / 2;
+            const wallX = 50;
+            const baseX = w / 2;
+            const scale = 80;
+            
+            // 壁
+            msdCtx.strokeStyle = '#4b5563';
+            msdCtx.lineWidth = 3;
+            msdCtx.beginPath();
+            msdCtx.moveTo(wallX, centerY - 60);
+            msdCtx.lineTo(wallX, centerY + 60);
+            msdCtx.stroke();
+            
+            // ハッチング
+            msdCtx.strokeStyle = '#374151';
+            msdCtx.lineWidth = 1;
+            for (let i = -6; i <= 6; i++) {
+                msdCtx.beginPath();
+                msdCtx.moveTo(wallX, centerY + i * 10);
+                msdCtx.lineTo(wallX - 15, centerY + i * 10 + 10);
+                msdCtx.stroke();
+            }
+            
+            // ばね
+            const blockX = baseX + x1 * scale;
+            const springStart = wallX;
+            const springEnd = blockX - 40;
+            const springLen = springEnd - springStart;
+            const coils = 8;
+            
+            msdCtx.strokeStyle = '#3b82f6';
+            msdCtx.lineWidth = 2;
+            msdCtx.beginPath();
+            msdCtx.moveTo(springStart, centerY - 15);
+            for (let i = 0; i <= coils; i++) {
+                const px = springStart + (springLen / coils) * i;
+                const py = centerY - 15 + (i % 2 === 0 ? -15 : 15);
+                msdCtx.lineTo(px, py);
+            }
+            msdCtx.stroke();
+            
+            // ダンパ
+            msdCtx.strokeStyle = '#10b981';
+            msdCtx.lineWidth = 2;
+            const damperY = centerY + 25;
+            msdCtx.beginPath();
+            msdCtx.moveTo(springStart, damperY);
+            msdCtx.lineTo(springStart + springLen * 0.3, damperY);
+            msdCtx.stroke();
+            
+            msdCtx.strokeRect(springStart + springLen * 0.3, damperY - 12, springLen * 0.3, 24);
+            
+            msdCtx.beginPath();
+            msdCtx.moveTo(springStart + springLen * 0.5, damperY);
+            msdCtx.lineTo(springEnd, damperY);
+            msdCtx.stroke();
+            
+            // 質量ブロック
+            msdCtx.fillStyle = '#8b5cf6';
+            msdCtx.strokeStyle = '#a78bfa';
+            msdCtx.lineWidth = 2;
+            msdCtx.fillRect(blockX - 40, centerY - 40, 80, 80);
+            msdCtx.strokeRect(blockX - 40, centerY - 40, 80, 80);
+            
+            // m ラベル
+            msdCtx.fillStyle = '#fff';
+            msdCtx.font = '20px JetBrains Mono';
+            msdCtx.textAlign = 'center';
+            msdCtx.fillText('m', blockX, centerY + 6);
+            
+            // 床
+            msdCtx.strokeStyle = '#4b5563';
+            msdCtx.lineWidth = 2;
+            msdCtx.beginPath();
+            msdCtx.moveTo(30, centerY + 50);
+            msdCtx.lineTo(w - 30, centerY + 50);
+            msdCtx.stroke();
+            
+            // 状態表示
+            msdCtx.fillStyle = '#9ca3af';
+            msdCtx.font = '14px JetBrains Mono';
+            msdCtx.textAlign = 'left';
+            msdCtx.fillText(`x₁ = ${x1.toFixed(3)} m`, 20, 30);
+            msdCtx.fillText(`x₂ = ${x2.toFixed(3)} m/s`, 20, 50);
+            msdCtx.fillText(`t = ${msdTime.toFixed(2)} s`, 20, 70);
+        }
+        
+        function drawTimeResponse() {
+            const w = timeCanvas.getBoundingClientRect().width;
+            const h = timeCanvas.getBoundingClientRect().height;
+            
+            timeCtx.fillStyle = '#0a0f1c';
+            timeCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 30, right: 30, bottom: 40, left: 60 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            // グリッド
+            timeCtx.strokeStyle = '#1f2937';
+            timeCtx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = margin.top + (plotH / 5) * i;
+                timeCtx.beginPath();
+                timeCtx.moveTo(margin.left, y);
+                timeCtx.lineTo(w - margin.right, y);
+                timeCtx.stroke();
+            }
+            
+            // 軸
+            timeCtx.strokeStyle = '#4b5563';
+            timeCtx.lineWidth = 2;
+            timeCtx.beginPath();
+            timeCtx.moveTo(margin.left, margin.top);
+            timeCtx.lineTo(margin.left, h - margin.bottom);
+            timeCtx.lineTo(w - margin.right, h - margin.bottom);
+            timeCtx.stroke();
+            
+            // ゼロライン
+            const zeroY = margin.top + plotH / 2;
+            timeCtx.strokeStyle = '#374151';
+            timeCtx.setLineDash([5, 5]);
+            timeCtx.beginPath();
+            timeCtx.moveTo(margin.left, zeroY);
+            timeCtx.lineTo(w - margin.right, zeroY);
+            timeCtx.stroke();
+            timeCtx.setLineDash([]);
+            
+            // データプロット
+            if (msdHistory.length > 1) {
+                const maxT = 10;
+                const maxAmp = 2.5;
+                
+                // x1 (位置)
+                timeCtx.strokeStyle = '#3b82f6';
+                timeCtx.lineWidth = 2;
+                timeCtx.beginPath();
+                msdHistory.forEach((p, i) => {
+                    const px = margin.left + (p.t / maxT) * plotW;
+                    const py = margin.top + plotH / 2 - (p.x1 / maxAmp) * (plotH / 2);
+                    if (i === 0) timeCtx.moveTo(px, py);
+                    else timeCtx.lineTo(px, py);
+                });
+                timeCtx.stroke();
+                
+                // x2 (速度)
+                timeCtx.strokeStyle = '#10b981';
+                timeCtx.lineWidth = 2;
+                timeCtx.beginPath();
+                msdHistory.forEach((p, i) => {
+                    const px = margin.left + (p.t / maxT) * plotW;
+                    const py = margin.top + plotH / 2 - (p.x2 / maxAmp) * (plotH / 2);
+                    if (i === 0) timeCtx.moveTo(px, py);
+                    else timeCtx.lineTo(px, py);
+                });
+                timeCtx.stroke();
+            }
+            
+            // ラベル
+            timeCtx.fillStyle = '#9ca3af';
+            timeCtx.font = '12px Noto Sans JP';
+            timeCtx.textAlign = 'center';
+            timeCtx.fillText('時間 t [s]', w / 2, h - 10);
+            
+            timeCtx.save();
+            timeCtx.translate(15, h / 2);
+            timeCtx.rotate(-Math.PI / 2);
+            timeCtx.fillText('状態変数', 0, 0);
+            timeCtx.restore();
+        }
+        
+        function drawPhasePlane() {
+            const w = phaseCanvas.getBoundingClientRect().width;
+            const h = phaseCanvas.getBoundingClientRect().height;
+            
+            phaseCtx.fillStyle = '#0a0f1c';
+            phaseCtx.fillRect(0, 0, w, h);
+            
+            const margin = 50;
+            const plotSize = Math.min(w, h) - 2 * margin;
+            const centerX = w / 2;
+            const centerY = h / 2;
+            const scale = plotSize / 5;
+            
+            // グリッド
+            phaseCtx.strokeStyle = '#1f2937';
+            phaseCtx.lineWidth = 1;
+            for (let i = -2; i <= 2; i++) {
+                // 縦線
+                phaseCtx.beginPath();
+                phaseCtx.moveTo(centerX + i * scale, margin);
+                phaseCtx.lineTo(centerX + i * scale, h - margin);
+                phaseCtx.stroke();
+                // 横線
+                phaseCtx.beginPath();
+                phaseCtx.moveTo(margin, centerY + i * scale);
+                phaseCtx.lineTo(w - margin, centerY + i * scale);
+                phaseCtx.stroke();
+            }
+            
+            // 軸
+            phaseCtx.strokeStyle = '#4b5563';
+            phaseCtx.lineWidth = 2;
+            phaseCtx.beginPath();
+            phaseCtx.moveTo(margin, centerY);
+            phaseCtx.lineTo(w - margin, centerY);
+            phaseCtx.moveTo(centerX, margin);
+            phaseCtx.lineTo(centerX, h - margin);
+            phaseCtx.stroke();
+            
+            // 軌道
+            if (msdHistory.length > 1) {
+                phaseCtx.strokeStyle = '#f59e0b';
+                phaseCtx.lineWidth = 2;
+                phaseCtx.beginPath();
+                msdHistory.forEach((p, i) => {
+                    const px = centerX + p.x1 * scale;
+                    const py = centerY - p.x2 * scale;
+                    if (i === 0) phaseCtx.moveTo(px, py);
+                    else phaseCtx.lineTo(px, py);
+                });
+                phaseCtx.stroke();
+                
+                // 現在位置
+                const last = msdHistory[msdHistory.length - 1];
+                phaseCtx.fillStyle = '#ef4444';
+                phaseCtx.beginPath();
+                phaseCtx.arc(centerX + last.x1 * scale, centerY - last.x2 * scale, 6, 0, Math.PI * 2);
+                phaseCtx.fill();
+            }
+            
+            // ラベル
+            phaseCtx.fillStyle = '#9ca3af';
+            phaseCtx.font = '12px Noto Sans JP';
+            phaseCtx.textAlign = 'center';
+            phaseCtx.fillText('x₁ (位置)', w - margin + 20, centerY + 4);
+            phaseCtx.fillText('x₂ (速度)', centerX, margin - 10);
+        }
+        
+        function drawRLC() {
+            const w = rlcCanvas.getBoundingClientRect().width;
+            const h = rlcCanvas.getBoundingClientRect().height;
+            
+            rlcCtx.fillStyle = '#0a0f1c';
+            rlcCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 30, right: 30, bottom: 40, left: 60 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            // グリッド
+            rlcCtx.strokeStyle = '#1f2937';
+            rlcCtx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = margin.top + (plotH / 5) * i;
+                rlcCtx.beginPath();
+                rlcCtx.moveTo(margin.left, y);
+                rlcCtx.lineTo(w - margin.right, y);
+                rlcCtx.stroke();
+            }
+            
+            // 軸
+            rlcCtx.strokeStyle = '#4b5563';
+            rlcCtx.lineWidth = 2;
+            rlcCtx.beginPath();
+            rlcCtx.moveTo(margin.left, margin.top);
+            rlcCtx.lineTo(margin.left, h - margin.bottom);
+            rlcCtx.lineTo(w - margin.right, h - margin.bottom);
+            rlcCtx.stroke();
+            
+            // データプロット
+            if (rlcHistory.length > 1) {
+                const maxT = 0.05;
+                const maxV = 15;
+                
+                // vc (電圧)
+                rlcCtx.strokeStyle = '#3b82f6';
+                rlcCtx.lineWidth = 2;
+                rlcCtx.beginPath();
+                rlcHistory.forEach((p, i) => {
+                    const px = margin.left + (p.t / maxT) * plotW;
+                    const py = h - margin.bottom - (p.vc / maxV) * plotH;
+                    if (i === 0) rlcCtx.moveTo(px, py);
+                    else rlcCtx.lineTo(px, py);
+                });
+                rlcCtx.stroke();
+                
+                // iL (電流) - スケール調整
+                rlcCtx.strokeStyle = '#10b981';
+                rlcCtx.lineWidth = 2;
+                rlcCtx.beginPath();
+                rlcHistory.forEach((p, i) => {
+                    const px = margin.left + (p.t / maxT) * plotW;
+                    const py = h - margin.bottom - (p.iL * 10 / maxV) * plotH;
+                    if (i === 0) rlcCtx.moveTo(px, py);
+                    else rlcCtx.lineTo(px, py);
+                });
+                rlcCtx.stroke();
+            }
+            
+            // 状態表示
+            rlcCtx.fillStyle = '#9ca3af';
+            rlcCtx.font = '12px JetBrains Mono';
+            rlcCtx.textAlign = 'left';
+            rlcCtx.fillText(`Vc = ${vc.toFixed(2)} V`, margin.left + 10, margin.top + 20);
+            rlcCtx.fillText(`IL = ${(iL * 1000).toFixed(2)} mA`, margin.left + 10, margin.top + 40);
+        }
+        
+        // シミュレーション更新
+        function updateMSD(dt) {
+            // ルンゲクッタ4次
+            const f = (state) => {
+                return {
+                    dx1: state.x2,
+                    dx2: -(k/m) * state.x1 - (c/m) * state.x2
+                };
+            };
+            
+            const state = { x1, x2 };
+            const k1 = f(state);
+            const k2 = f({ x1: state.x1 + dt/2 * k1.dx1, x2: state.x2 + dt/2 * k1.dx2 });
+            const k3 = f({ x1: state.x1 + dt/2 * k2.dx1, x2: state.x2 + dt/2 * k2.dx2 });
+            const k4 = f({ x1: state.x1 + dt * k3.dx1, x2: state.x2 + dt * k3.dx2 });
+            
+            x1 += dt/6 * (k1.dx1 + 2*k2.dx1 + 2*k3.dx1 + k4.dx1);
+            x2 += dt/6 * (k1.dx2 + 2*k2.dx2 + 2*k3.dx2 + k4.dx2);
+            msdTime += dt;
+            
+            msdHistory.push({ t: msdTime, x1, x2 });
+            if (msdHistory.length > 1000) msdHistory.shift();
+        }
+        
+        function updateRLC(dt) {
+            // RLC回路の状態方程式
+            const f = (state) => {
+                return {
+                    dvc: state.iL / C_val,
+                    diL: (stepInput - state.vc) / L - (R / L) * state.iL
+                };
+            };
+            
+            const state = { vc, iL };
+            const k1 = f(state);
+            const k2 = f({ vc: state.vc + dt/2 * k1.dvc, iL: state.iL + dt/2 * k1.diL });
+            const k3 = f({ vc: state.vc + dt/2 * k2.dvc, iL: state.iL + dt/2 * k2.diL });
+            const k4 = f({ vc: state.vc + dt * k3.dvc, iL: state.iL + dt * k3.diL });
+            
+            vc += dt/6 * (k1.dvc + 2*k2.dvc + 2*k3.dvc + k4.dvc);
+            iL += dt/6 * (k1.diL + 2*k2.diL + 2*k3.diL + k4.diL);
+            rlcTime += dt;
+            
+            rlcHistory.push({ t: rlcTime, vc, iL });
+            if (rlcHistory.length > 1000) rlcHistory.shift();
+        }
+        
+        function animate() {
+            if (msdRunning) {
+                for (let i = 0; i < 5; i++) {
+                    updateMSD(0.005);
+                    updateRLC(0.00001);
+                }
+            }
+            
+            drawMSD();
+            drawTimeResponse();
+            drawPhasePlane();
+            drawRLC();
+            
+            msdAnimationId = requestAnimationFrame(animate);
+        }
+        
+        function resetMSD() {
+            x1 = x0;
+            x2 = 0;
+            msdTime = 0;
+            msdHistory = [];
+            msdRunning = true;
+        }
+        
+        function toggleMSD() {
+            msdRunning = !msdRunning;
+        }
+        
+        function resetRLC() {
+            vc = 0;
+            iL = 0;
+            rlcTime = 0;
+            rlcHistory = [];
+            stepInput = 0;
+        }
+        
+        function applyStep() {
+            resetRLC();
+            stepInput = 10; // 10Vステップ入力
+        }
+        
+        // 初期化
+        window.addEventListener('load', () => {
+            initCanvases();
+            updateMatrixDisplay();
+            updateRLCMatrix();
+            animate();
+        });
+        
+        window.addEventListener('resize', initCanvases);
+    </script>
+</body>
+</html>

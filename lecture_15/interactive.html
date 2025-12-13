@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第15回：サーボシステム</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #1a1a2e; --card: #16213e; --accent: #00adb5; --yellow: #ffd369; --red: #e94560; --green: #7ec8e3; --text: #eaeaea; --dim: #888; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        header { text-align: center; padding: 2rem 0; }
+        h1 { font-size: 2rem; color: var(--accent); }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .card { background: var(--card); border-radius: 12px; padding: 1.5rem; }
+        .card-full { grid-column: 1 / -1; }
+        .card-title { color: var(--accent); margin-bottom: 1rem; }
+        canvas { width: 100%; height: 280px; border-radius: 8px; background: rgba(0,0,0,0.3); }
+        .slider-group { margin: 0.8rem 0; }
+        .slider-group label { display: flex; justify-content: space-between; color: var(--dim); font-size: 0.9rem; }
+        input[type="range"] { width: 100%; margin-top: 0.3rem; }
+        .btn { padding: 0.5rem 1rem; background: var(--accent); border: none; border-radius: 6px; color: #1a1a2e; font-weight: 500; cursor: pointer; margin: 0.2rem; }
+        .btn.active { background: var(--yellow); }
+        .result-box { background: rgba(0, 173, 181, 0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; margin: 0.5rem 0; }
+        .info { background: rgba(255, 211, 105, 0.1); border-left: 3px solid var(--yellow); padding: 0.75rem; margin: 0.5rem 0; font-size: 0.9rem; }
+        .legend { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.85rem; }
+        .metric { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第15回：サーボシステム</h1>
+            <p style="color: var(--dim);">Servo System Design for Reference Tracking</p>
+        </header>
+        
+        <div class="grid">
+            <div class="card">
+                <h3 class="card-title">⚙️ サーボ系パラメータ</h3>
+                <div class="slider-group">
+                    <label>状態ゲイン Kx: <span id="kxVal">1.0</span></label>
+                    <input type="range" id="kxSlider" min="0.5" max="5" step="0.1" value="1">
+                </div>
+                <div class="slider-group">
+                    <label>積分ゲイン Ki: <span id="kiVal">0.5</span></label>
+                    <input type="range" id="kiSlider" min="0" max="2" step="0.1" value="0.5">
+                </div>
+                <div style="margin-top: 1rem;">
+                    <button class="btn active" id="btnStep" onclick="setRef('step')">ステップ</button>
+                    <button class="btn" id="btnRamp" onclick="setRef('ramp')">ランプ</button>
+                    <button class="btn" id="btnSine" onclick="setRef('sine')">正弦波</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📊 性能指標</h3>
+                <div class="metric">
+                    <span>定常偏差:</span>
+                    <span id="ssError">0.000</span>
+                </div>
+                <div class="metric">
+                    <span>立ち上がり時間:</span>
+                    <span id="riseTime">0.52 s</span>
+                </div>
+                <div class="metric">
+                    <span>オーバーシュート:</span>
+                    <span id="overshoot">12.3 %</span>
+                </div>
+                <div class="metric">
+                    <span>整定時間:</span>
+                    <span id="settleTime">2.1 s</span>
+                </div>
+                <div class="info" style="margin-top: 1rem;">
+                    積分動作(Ki > 0)で定常偏差ゼロ
+                </div>
+            </div>
+            
+            <div class="card card-full">
+                <h3 class="card-title">📈 目標値追従</h3>
+                <canvas id="trackCanvas" style="height: 220px;"></canvas>
+                <div class="legend">
+                    <span style="color: var(--yellow);">— 参照 r(t)</span>
+                    <span style="color: var(--accent);">— 出力 y(t)</span>
+                    <span style="color: var(--red);">— 偏差 e(t)</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🔧 制御入力</h3>
+                <canvas id="controlCanvas"></canvas>
+                <div class="legend">
+                    <span style="color: var(--green);">— u(t)</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📦 積分状態</h3>
+                <canvas id="integralCanvas"></canvas>
+                <div class="legend">
+                    <span style="color: var(--yellow);">— z(t) = ∫e dt</span>
+                </div>
+            </div>
+            
+            <div class="card card-full">
+                <h3 class="card-title">🔄 サーボ系の構造</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                    <div class="result-box">
+                        <strong>拡大系</strong><br><br>
+                        状態: x̄ = [x; z]<br>
+                        z = ∫(r - y)dt<br>
+                        u = -Kx·x - Ki·z
+                    </div>
+                    <div class="result-box">
+                        <strong>内部モデル原理</strong><br><br>
+                        ステップ追従 → 積分器<br>
+                        ランプ追従 → 二重積分<br>
+                        正弦波追従 → 発振器
+                    </div>
+                    <div class="result-box">
+                        <strong>2自由度制御</strong><br><br>
+                        FF: Nr で応答整形<br>
+                        FB: -Kx で安定化<br>
+                        積分: 外乱除去
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const A = [[0, 1], [-2, -3]];
+        const B = [0, 1];
+        const C = [1, 0];
+        let Kx = [1, 1];
+        let Ki = 0.5;
+        let refType = 'step';
+        
+        const trackCanvas = document.getElementById('trackCanvas');
+        const trackCtx = trackCanvas.getContext('2d');
+        const controlCanvas = document.getElementById('controlCanvas');
+        const controlCtx = controlCanvas.getContext('2d');
+        const integralCanvas = document.getElementById('integralCanvas');
+        const integralCtx = integralCanvas.getContext('2d');
+        
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        
+        function getReference(t) {
+            switch (refType) {
+                case 'step': return t >= 1 ? 1 : 0;
+                case 'ramp': return t >= 1 ? Math.min((t - 1) * 0.5, 2) : 0;
+                case 'sine': return t >= 1 ? Math.sin(0.5 * (t - 1)) : 0;
+                default: return 0;
+            }
+        }
+        
+        function setRef(type) {
+            refType = type;
+            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn' + type.charAt(0).toUpperCase() + type.slice(1)).classList.add('active');
+            simulate();
+        }
+        
+        function simulate() {
+            const kxVal = parseFloat(document.getElementById('kxSlider').value);
+            Ki = parseFloat(document.getElementById('kiSlider').value);
+            Kx = [kxVal, kxVal * 1.5];
+            
+            document.getElementById('kxVal').textContent = kxVal.toFixed(1);
+            document.getElementById('kiVal').textContent = Ki.toFixed(1);
+            
+            const dt = 0.02;
+            const maxT = 12;
+            const data = [];
+            
+            let x1 = 0, x2 = 0, z = 0;
+            let maxY = 1, maxU = 1, maxZ = 1;
+            let riseTime = null, settleTime = null, overshoot = 0;
+            let steadyError = 0;
+            
+            for (let t = 0; t <= maxT; t += dt) {
+                const r = getReference(t);
+                const y = C[0]*x1 + C[1]*x2;
+                const e = r - y;
+                const u = -(Kx[0]*x1 + Kx[1]*x2) - Ki*z;
+                
+                data.push({ t, r, y, e, u, z });
+                
+                maxY = Math.max(maxY, Math.abs(y), Math.abs(r));
+                maxU = Math.max(maxU, Math.abs(u));
+                maxZ = Math.max(maxZ, Math.abs(z));
+                
+                // 性能指標計算
+                if (refType === 'step' && t >= 1) {
+                    if (riseTime === null && y >= 0.9) riseTime = t - 1;
+                    overshoot = Math.max(overshoot, (y - 1) * 100);
+                    if (t > 8) steadyError = Math.abs(e);
+                }
+                
+                // 状態更新
+                const dx1 = A[0][0]*x1 + A[0][1]*x2 + B[0]*u;
+                const dx2 = A[1][0]*x1 + A[1][1]*x2 + B[1]*u;
+                const dz = e;
+                
+                x1 += dx1 * dt;
+                x2 += dx2 * dt;
+                z += dz * dt;
+            }
+            
+            document.getElementById('ssError').textContent = steadyError.toFixed(4);
+            document.getElementById('riseTime').textContent = riseTime ? riseTime.toFixed(2) + ' s' : '-';
+            document.getElementById('overshoot').textContent = overshoot.toFixed(1) + ' %';
+            document.getElementById('settleTime').textContent = (riseTime ? riseTime + 2 : 0).toFixed(1) + ' s';
+            
+            drawTrack(data, maxY);
+            drawControl(data, maxU);
+            drawIntegral(data, maxZ);
+        }
+        
+        function drawTrack(data, maxY) {
+            const w = trackCanvas.getBoundingClientRect().width;
+            const h = trackCanvas.getBoundingClientRect().height;
+            trackCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            trackCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 25, left: 40 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            const maxT = 12;
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (y) => margin.top + plotH/2 - (y / (maxY * 1.2)) * (plotH/2);
+            
+            // グリッド
+            trackCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            trackCtx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                trackCtx.beginPath();
+                trackCtx.moveTo(margin.left, margin.top + (plotH/4)*i);
+                trackCtx.lineTo(w - margin.right, margin.top + (plotH/4)*i);
+                trackCtx.stroke();
+            }
+            
+            // 参照
+            trackCtx.strokeStyle = 'var(--yellow)';
+            trackCtx.lineWidth = 2;
+            trackCtx.setLineDash([5, 5]);
+            trackCtx.beginPath();
+            data.forEach((d, i) => {
+                if (i === 0) trackCtx.moveTo(toX(d.t), toY(d.r));
+                else trackCtx.lineTo(toX(d.t), toY(d.r));
+            });
+            trackCtx.stroke();
+            trackCtx.setLineDash([]);
+            
+            // 出力
+            trackCtx.strokeStyle = 'var(--accent)';
+            trackCtx.beginPath();
+            data.forEach((d, i) => {
+                if (i === 0) trackCtx.moveTo(toX(d.t), toY(d.y));
+                else trackCtx.lineTo(toX(d.t), toY(d.y));
+            });
+            trackCtx.stroke();
+            
+            // 偏差
+            trackCtx.strokeStyle = 'var(--red)';
+            trackCtx.lineWidth = 1;
+            trackCtx.beginPath();
+            data.forEach((d, i) => {
+                if (i === 0) trackCtx.moveTo(toX(d.t), toY(d.e));
+                else trackCtx.lineTo(toX(d.t), toY(d.e));
+            });
+            trackCtx.stroke();
+        }
+        
+        function drawControl(data, maxU) {
+            const w = controlCanvas.getBoundingClientRect().width;
+            const h = controlCanvas.getBoundingClientRect().height;
+            controlCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            controlCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 25, left: 40 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            const maxT = 12;
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (u) => margin.top + plotH/2 - (u / (maxU * 1.2)) * (plotH/2);
+            
+            // ゼロライン
+            controlCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            controlCtx.beginPath();
+            controlCtx.moveTo(margin.left, toY(0));
+            controlCtx.lineTo(w - margin.right, toY(0));
+            controlCtx.stroke();
+            
+            // 制御入力
+            controlCtx.strokeStyle = 'var(--green)';
+            controlCtx.lineWidth = 2;
+            controlCtx.beginPath();
+            data.forEach((d, i) => {
+                if (i === 0) controlCtx.moveTo(toX(d.t), toY(d.u));
+                else controlCtx.lineTo(toX(d.t), toY(d.u));
+            });
+            controlCtx.stroke();
+        }
+        
+        function drawIntegral(data, maxZ) {
+            const w = integralCanvas.getBoundingClientRect().width;
+            const h = integralCanvas.getBoundingClientRect().height;
+            integralCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            integralCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 25, left: 40 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            const maxT = 12;
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (z) => margin.top + plotH/2 - (z / (maxZ * 1.2)) * (plotH/2);
+            
+            // 積分状態
+            integralCtx.strokeStyle = 'var(--yellow)';
+            integralCtx.lineWidth = 2;
+            integralCtx.beginPath();
+            data.forEach((d, i) => {
+                if (i === 0) integralCtx.moveTo(toX(d.t), toY(d.z));
+                else integralCtx.lineTo(toX(d.t), toY(d.z));
+            });
+            integralCtx.stroke();
+        }
+        
+        document.getElementById('kxSlider').addEventListener('input', simulate);
+        document.getElementById('kiSlider').addEventListener('input', simulate);
+        
+        window.addEventListener('load', () => {
+            setupCanvas(trackCanvas, trackCtx);
+            setupCanvas(controlCanvas, controlCtx);
+            setupCanvas(integralCanvas, integralCtx);
+            simulate();
+        });
+        window.addEventListener('resize', () => {
+            setupCanvas(trackCanvas, trackCtx);
+            setupCanvas(controlCanvas, controlCtx);
+            setupCanvas(integralCanvas, integralCtx);
+            simulate();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第2回：PID制御</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --accent-red: #f85149;
+            --accent-green: #3fb950;
+            --accent-blue: #58a6ff;
+            --accent-purple: #bc8cff;
+            --accent-orange: #d29922;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --border-color: #30363d;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        
+        .container { max-width: 1600px; margin: 0 auto; padding: 1.5rem; }
+        
+        header {
+            text-align: center;
+            padding: 2rem 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, var(--accent-red), var(--accent-orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .grid-main {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 1.5rem;
+        }
+        
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+        
+        .card-title {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            color: var(--accent-blue);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .control-group {
+            margin-bottom: 1rem;
+        }
+        
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.4rem;
+        }
+        
+        .control-group label span {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent-green);
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--bg-tertiary);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            cursor: pointer;
+        }
+        
+        .gain-indicator {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .gain-bar {
+            flex: 1;
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .gain-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.2s;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 0.6rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+        
+        .btn-primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+        
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .chart-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 280px;
+            border-radius: 8px;
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        
+        .chart-title {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+        
+        .legend {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+            margin-top: 0.75rem;
+        }
+        
+        .metric {
+            background: var(--bg-tertiary);
+            padding: 0.75rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.2rem;
+            color: var(--accent-green);
+        }
+        
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+        
+        .preset-btns {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+        
+        .formula-box {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+        }
+        
+        .formula-line {
+            margin: 0.3rem 0;
+        }
+        
+        .var-p { color: var(--accent-red); }
+        .var-i { color: var(--accent-green); }
+        .var-d { color: var(--accent-blue); }
+        
+        @media (max-width: 1024px) {
+            .grid-main {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第2回：PID制御</h1>
+            <p style="color: var(--text-secondary); margin-top: 0.5rem;">Proportional-Integral-Derivative Control</p>
+        </header>
+        
+        <div class="grid-main">
+            <div class="sidebar">
+                <!-- PIDゲイン設定 -->
+                <div class="card">
+                    <h3 class="card-title">🎛️ PIDゲイン設定</h3>
+                    
+                    <div class="control-group">
+                        <label>比例ゲイン Kp <span id="KpVal">1.00</span></label>
+                        <input type="range" id="KpSlider" min="0" max="10" step="0.1" value="1">
+                        <div class="gain-indicator">
+                            <div class="gain-bar"><div class="gain-bar-fill" id="KpBar" style="width: 10%; background: var(--accent-red);"></div></div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>積分ゲイン Ki <span id="KiVal">0.00</span></label>
+                        <input type="range" id="KiSlider" min="0" max="5" step="0.05" value="0">
+                        <div class="gain-indicator">
+                            <div class="gain-bar"><div class="gain-bar-fill" id="KiBar" style="width: 0%; background: var(--accent-green);"></div></div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>微分ゲイン Kd <span id="KdVal">0.00</span></label>
+                        <input type="range" id="KdSlider" min="0" max="3" step="0.05" value="0">
+                        <div class="gain-indicator">
+                            <div class="gain-bar"><div class="gain-bar-fill" id="KdBar" style="width: 0%; background: var(--accent-blue);"></div></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- プリセット -->
+                <div class="card">
+                    <h3 class="card-title">📋 プリセット</h3>
+                    <div class="preset-btns">
+                        <button class="btn" onclick="setPreset(1, 0, 0)">P制御のみ</button>
+                        <button class="btn" onclick="setPreset(1, 0.5, 0)">PI制御</button>
+                        <button class="btn" onclick="setPreset(1, 0, 0.5)">PD制御</button>
+                        <button class="btn" onclick="setPreset(2, 0.5, 0.5)">PID制御</button>
+                        <button class="btn" onclick="setPreset(5, 0, 0)">高Kp</button>
+                        <button class="btn" onclick="setPreset(1, 2, 0)">高Ki</button>
+                        <button class="btn" onclick="setPreset(3, 1, 1)">バランス</button>
+                        <button class="btn" onclick="setPreset(4, 0.8, 0.3)">最適化済</button>
+                    </div>
+                </div>
+                
+                <!-- プラント設定 -->
+                <div class="card">
+                    <h3 class="card-title">🏭 プラント設定</h3>
+                    <div class="control-group">
+                        <label>自然周波数 ωn <span id="wnVal">1.00</span></label>
+                        <input type="range" id="wnSlider" min="0.5" max="3" step="0.1" value="1">
+                    </div>
+                    <div class="control-group">
+                        <label>減衰比 ζ <span id="zetaVal">0.30</span></label>
+                        <input type="range" id="zetaSlider" min="0.1" max="1.5" step="0.05" value="0.3">
+                    </div>
+                </div>
+                
+                <!-- 制御式 -->
+                <div class="card">
+                    <h3 class="card-title">📐 制御則</h3>
+                    <div class="formula-box">
+                        <div class="formula-line">u(t) = <span class="var-p">Kp·e(t)</span></div>
+                        <div class="formula-line">     + <span class="var-i">Ki·∫e(τ)dτ</span></div>
+                        <div class="formula-line">     + <span class="var-d">Kd·de/dt</span></div>
+                    </div>
+                </div>
+                
+                <!-- 操作ボタン -->
+                <div class="card">
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="resetSim()">リセット</button>
+                        <button class="btn" onclick="toggleSim()" id="toggleBtn">一時停止</button>
+                        <button class="btn" onclick="stepInput()">ステップ入力</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="main-content">
+                <!-- 時間応答グラフ -->
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <span class="chart-title">時間応答 (Step Response)</span>
+                        <div class="legend">
+                            <div class="legend-item"><div class="legend-dot" style="background: #f0f6fc;"></div>目標値 r</div>
+                            <div class="legend-item"><div class="legend-dot" style="background: var(--accent-blue);"></div>出力 y</div>
+                            <div class="legend-item"><div class="legend-dot" style="background: var(--accent-purple);"></div>偏差 e</div>
+                        </div>
+                    </div>
+                    <canvas id="responseCanvas"></canvas>
+                    <div class="metrics">
+                        <div class="metric">
+                            <div class="metric-value" id="riseTime">--</div>
+                            <div class="metric-label">立ち上がり時間</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value" id="overshoot">--</div>
+                            <div class="metric-label">オーバーシュート</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value" id="settlingTime">--</div>
+                            <div class="metric-label">整定時間</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value" id="steadyError">--</div>
+                            <div class="metric-label">定常偏差</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 制御入力グラフ -->
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <span class="chart-title">制御入力 u(t)</span>
+                        <div class="legend">
+                            <div class="legend-item"><div class="legend-dot" style="background: var(--accent-red);"></div>P成分</div>
+                            <div class="legend-item"><div class="legend-dot" style="background: var(--accent-green);"></div>I成分</div>
+                            <div class="legend-item"><div class="legend-dot" style="background: var(--accent-blue);"></div>D成分</div>
+                            <div class="legend-item"><div class="legend-dot" style="background: var(--accent-orange);"></div>合計 u</div>
+                        </div>
+                    </div>
+                    <canvas id="controlCanvas"></canvas>
+                </div>
+                
+                <!-- P, I, D 各成分の効果 -->
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <span class="chart-title">PID各成分の寄与</span>
+                    </div>
+                    <canvas id="componentCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // パラメータ
+        let Kp = 1, Ki = 0, Kd = 0;
+        let wn = 1, zeta = 0.3;
+        
+        // シミュレーション状態
+        let running = true;
+        let time = 0;
+        let dt = 0.01;
+        let reference = 1;
+        
+        // 状態変数 (2次系)
+        let x1 = 0, x2 = 0; // プラント状態
+        let integral = 0;    // 積分項
+        let prevError = 0;   // 前回の偏差
+        
+        // 履歴
+        let history = [];
+        const maxHistory = 1500;
+        
+        // キャンバス
+        const responseCanvas = document.getElementById('responseCanvas');
+        const responseCtx = responseCanvas.getContext('2d');
+        const controlCanvas = document.getElementById('controlCanvas');
+        const controlCtx = controlCanvas.getContext('2d');
+        const componentCanvas = document.getElementById('componentCanvas');
+        const componentCtx = componentCanvas.getContext('2d');
+        
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+        }
+        
+        function initCanvases() {
+            setupCanvas(responseCanvas, responseCtx);
+            setupCanvas(controlCanvas, controlCtx);
+            setupCanvas(componentCanvas, componentCtx);
+        }
+        
+        // スライダーイベント
+        document.getElementById('KpSlider').addEventListener('input', (e) => {
+            Kp = parseFloat(e.target.value);
+            document.getElementById('KpVal').textContent = Kp.toFixed(2);
+            document.getElementById('KpBar').style.width = (Kp / 10 * 100) + '%';
+        });
+        
+        document.getElementById('KiSlider').addEventListener('input', (e) => {
+            Ki = parseFloat(e.target.value);
+            document.getElementById('KiVal').textContent = Ki.toFixed(2);
+            document.getElementById('KiBar').style.width = (Ki / 5 * 100) + '%';
+        });
+        
+        document.getElementById('KdSlider').addEventListener('input', (e) => {
+            Kd = parseFloat(e.target.value);
+            document.getElementById('KdVal').textContent = Kd.toFixed(2);
+            document.getElementById('KdBar').style.width = (Kd / 3 * 100) + '%';
+        });
+        
+        document.getElementById('wnSlider').addEventListener('input', (e) => {
+            wn = parseFloat(e.target.value);
+            document.getElementById('wnVal').textContent = wn.toFixed(2);
+        });
+        
+        document.getElementById('zetaSlider').addEventListener('input', (e) => {
+            zeta = parseFloat(e.target.value);
+            document.getElementById('zetaVal').textContent = zeta.toFixed(2);
+        });
+        
+        function setPreset(p, i, d) {
+            Kp = p; Ki = i; Kd = d;
+            document.getElementById('KpSlider').value = Kp;
+            document.getElementById('KiSlider').value = Ki;
+            document.getElementById('KdSlider').value = Kd;
+            document.getElementById('KpVal').textContent = Kp.toFixed(2);
+            document.getElementById('KiVal').textContent = Ki.toFixed(2);
+            document.getElementById('KdVal').textContent = Kd.toFixed(2);
+            document.getElementById('KpBar').style.width = (Kp / 10 * 100) + '%';
+            document.getElementById('KiBar').style.width = (Ki / 5 * 100) + '%';
+            document.getElementById('KdBar').style.width = (Kd / 3 * 100) + '%';
+            resetSim();
+        }
+        
+        function resetSim() {
+            time = 0;
+            x1 = 0; x2 = 0;
+            integral = 0;
+            prevError = 0;
+            history = [];
+            reference = 1;
+        }
+        
+        function toggleSim() {
+            running = !running;
+            document.getElementById('toggleBtn').textContent = running ? '一時停止' : '再開';
+        }
+        
+        function stepInput() {
+            resetSim();
+            reference = 1;
+        }
+        
+        // シミュレーション更新
+        function update() {
+            if (!running) return;
+            
+            const y = x1; // 出力
+            const error = reference - y;
+            
+            // PID制御
+            const P = Kp * error;
+            integral += error * dt;
+            const I = Ki * integral;
+            const D = Kd * (error - prevError) / dt;
+            const u = P + I + D;
+            
+            prevError = error;
+            
+            // プラント (2次系): G(s) = wn^2 / (s^2 + 2*zeta*wn*s + wn^2)
+            // 状態方程式: dx1/dt = x2, dx2/dt = -wn^2*x1 - 2*zeta*wn*x2 + wn^2*u
+            const dx1 = x2;
+            const dx2 = -wn*wn*x1 - 2*zeta*wn*x2 + wn*wn*u;
+            
+            x1 += dx1 * dt;
+            x2 += dx2 * dt;
+            time += dt;
+            
+            // クランプ
+            const uClamped = Math.max(-20, Math.min(20, u));
+            
+            history.push({
+                t: time,
+                r: reference,
+                y: x1,
+                e: error,
+                u: uClamped,
+                P: Math.max(-10, Math.min(10, P)),
+                I: Math.max(-10, Math.min(10, I)),
+                D: Math.max(-10, Math.min(10, D))
+            });
+            
+            if (history.length > maxHistory) history.shift();
+        }
+        
+        // 描画関数
+        function drawResponse() {
+            const w = responseCanvas.getBoundingClientRect().width;
+            const h = responseCanvas.getBoundingClientRect().height;
+            
+            responseCtx.fillStyle = '#0d1117';
+            responseCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            // グリッド
+            responseCtx.strokeStyle = '#21262d';
+            responseCtx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = margin.top + (plotH / 5) * i;
+                responseCtx.beginPath();
+                responseCtx.moveTo(margin.left, y);
+                responseCtx.lineTo(w - margin.right, y);
+                responseCtx.stroke();
+            }
+            
+            if (history.length < 2) return;
+            
+            const maxT = 15;
+            const minY = -0.5, maxY = 2;
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (v) => margin.top + plotH - ((v - minY) / (maxY - minY)) * plotH;
+            
+            // 目標値 (破線)
+            responseCtx.strokeStyle = '#f0f6fc';
+            responseCtx.lineWidth = 1;
+            responseCtx.setLineDash([5, 5]);
+            responseCtx.beginPath();
+            responseCtx.moveTo(margin.left, toY(reference));
+            responseCtx.lineTo(w - margin.right, toY(reference));
+            responseCtx.stroke();
+            responseCtx.setLineDash([]);
+            
+            // 出力 y
+            responseCtx.strokeStyle = '#58a6ff';
+            responseCtx.lineWidth = 2;
+            responseCtx.beginPath();
+            history.forEach((p, i) => {
+                const x = toX(p.t);
+                const y = toY(p.y);
+                if (i === 0) responseCtx.moveTo(x, y);
+                else responseCtx.lineTo(x, y);
+            });
+            responseCtx.stroke();
+            
+            // 偏差 e
+            responseCtx.strokeStyle = '#bc8cff';
+            responseCtx.lineWidth = 1;
+            responseCtx.beginPath();
+            history.forEach((p, i) => {
+                const x = toX(p.t);
+                const y = toY(p.e);
+                if (i === 0) responseCtx.moveTo(x, y);
+                else responseCtx.lineTo(x, y);
+            });
+            responseCtx.stroke();
+            
+            // メトリクス計算
+            calculateMetrics();
+        }
+        
+        function drawControl() {
+            const w = controlCanvas.getBoundingClientRect().width;
+            const h = controlCanvas.getBoundingClientRect().height;
+            
+            controlCtx.fillStyle = '#0d1117';
+            controlCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            if (history.length < 2) return;
+            
+            const maxT = 15;
+            const minU = -5, maxU = 15;
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (v) => margin.top + plotH - ((v - minU) / (maxU - minU)) * plotH;
+            
+            // ゼロライン
+            controlCtx.strokeStyle = '#30363d';
+            controlCtx.lineWidth = 1;
+            controlCtx.setLineDash([3, 3]);
+            controlCtx.beginPath();
+            controlCtx.moveTo(margin.left, toY(0));
+            controlCtx.lineTo(w - margin.right, toY(0));
+            controlCtx.stroke();
+            controlCtx.setLineDash([]);
+            
+            // P成分
+            controlCtx.strokeStyle = '#f85149';
+            controlCtx.lineWidth = 1.5;
+            controlCtx.beginPath();
+            history.forEach((p, i) => {
+                if (i === 0) controlCtx.moveTo(toX(p.t), toY(p.P));
+                else controlCtx.lineTo(toX(p.t), toY(p.P));
+            });
+            controlCtx.stroke();
+            
+            // I成分
+            controlCtx.strokeStyle = '#3fb950';
+            controlCtx.beginPath();
+            history.forEach((p, i) => {
+                if (i === 0) controlCtx.moveTo(toX(p.t), toY(p.I));
+                else controlCtx.lineTo(toX(p.t), toY(p.I));
+            });
+            controlCtx.stroke();
+            
+            // D成分
+            controlCtx.strokeStyle = '#58a6ff';
+            controlCtx.beginPath();
+            history.forEach((p, i) => {
+                if (i === 0) controlCtx.moveTo(toX(p.t), toY(p.D));
+                else controlCtx.lineTo(toX(p.t), toY(p.D));
+            });
+            controlCtx.stroke();
+            
+            // 合計
+            controlCtx.strokeStyle = '#d29922';
+            controlCtx.lineWidth = 2;
+            controlCtx.beginPath();
+            history.forEach((p, i) => {
+                if (i === 0) controlCtx.moveTo(toX(p.t), toY(p.u));
+                else controlCtx.lineTo(toX(p.t), toY(p.u));
+            });
+            controlCtx.stroke();
+        }
+        
+        function drawComponent() {
+            const w = componentCanvas.getBoundingClientRect().width;
+            const h = componentCanvas.getBoundingClientRect().height;
+            
+            componentCtx.fillStyle = '#0d1117';
+            componentCtx.fillRect(0, 0, w, h);
+            
+            if (history.length < 2) return;
+            
+            const last = history[history.length - 1];
+            const total = Math.abs(last.P) + Math.abs(last.I) + Math.abs(last.D) + 0.001;
+            
+            const barHeight = 30;
+            const margin = 60;
+            const barWidth = w - 2 * margin;
+            
+            // P成分バー
+            let x = margin;
+            const pWidth = (Math.abs(last.P) / total) * barWidth;
+            componentCtx.fillStyle = '#f85149';
+            componentCtx.fillRect(x, 40, pWidth, barHeight);
+            
+            // I成分バー
+            x += pWidth;
+            const iWidth = (Math.abs(last.I) / total) * barWidth;
+            componentCtx.fillStyle = '#3fb950';
+            componentCtx.fillRect(x, 40, iWidth, barHeight);
+            
+            // D成分バー
+            x += iWidth;
+            const dWidth = (Math.abs(last.D) / total) * barWidth;
+            componentCtx.fillStyle = '#58a6ff';
+            componentCtx.fillRect(x, 40, dWidth, barHeight);
+            
+            // ラベル
+            componentCtx.fillStyle = '#f0f6fc';
+            componentCtx.font = '12px JetBrains Mono';
+            componentCtx.textAlign = 'center';
+            
+            componentCtx.fillText(`P: ${last.P.toFixed(2)}`, margin + pWidth/2, 90);
+            componentCtx.fillText(`I: ${last.I.toFixed(2)}`, margin + pWidth + iWidth/2, 90);
+            componentCtx.fillText(`D: ${last.D.toFixed(2)}`, margin + pWidth + iWidth + dWidth/2, 90);
+            
+            componentCtx.fillText(`合計 u = ${last.u.toFixed(2)}`, w/2, 120);
+        }
+        
+        function calculateMetrics() {
+            if (history.length < 100) return;
+            
+            // 立ち上がり時間 (10%→90%)
+            let riseTime = '--';
+            let t10 = null, t90 = null;
+            for (const p of history) {
+                if (t10 === null && p.y >= 0.1 * reference) t10 = p.t;
+                if (t90 === null && p.y >= 0.9 * reference) t90 = p.t;
+            }
+            if (t10 !== null && t90 !== null) {
+                riseTime = (t90 - t10).toFixed(2) + 's';
+            }
+            
+            // オーバーシュート
+            let maxY = 0;
+            for (const p of history) {
+                if (p.y > maxY) maxY = p.y;
+            }
+            const overshoot = Math.max(0, (maxY - reference) / reference * 100);
+            
+            // 整定時間 (±2%)
+            let settlingTime = '--';
+            for (let i = history.length - 1; i >= 0; i--) {
+                if (Math.abs(history[i].y - reference) > 0.02 * reference) {
+                    if (i < history.length - 1) {
+                        settlingTime = history[i].t.toFixed(2) + 's';
+                    }
+                    break;
+                }
+            }
+            
+            // 定常偏差
+            const last = history[history.length - 1];
+            const steadyError = Math.abs(last.e).toFixed(3);
+            
+            document.getElementById('riseTime').textContent = riseTime;
+            document.getElementById('overshoot').textContent = overshoot.toFixed(1) + '%';
+            document.getElementById('settlingTime').textContent = settlingTime;
+            document.getElementById('steadyError').textContent = steadyError;
+        }
+        
+        function animate() {
+            for (let i = 0; i < 5; i++) update();
+            drawResponse();
+            drawControl();
+            drawComponent();
+            requestAnimationFrame(animate);
+        }
+        
+        window.addEventListener('load', () => {
+            initCanvases();
+            animate();
+        });
+        
+        window.addEventListener('resize', initCanvases);
+    </script>
+</body>
+</html>

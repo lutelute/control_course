@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第4回：遷移行列の計算</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --bg-card: #16213e;
+            --accent: #e94560;
+            --accent2: #0f3460;
+            --cyan: #4fd1c5;
+            --yellow: #f6e05e;
+            --text: #edf2f7;
+            --text-dim: #a0aec0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        header { text-align: center; padding: 2rem 0; margin-bottom: 2rem; }
+        h1 { font-size: 2rem; color: var(--cyan); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .card-full { grid-column: 1 / -1; }
+        .card-title { color: var(--cyan); margin-bottom: 1rem; font-size: 1.1rem; }
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 70px);
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+        }
+        .matrix-grid input {
+            padding: 0.5rem;
+            background: var(--accent2);
+            border: 1px solid var(--cyan);
+            border-radius: 4px;
+            color: var(--text);
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .method-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 0.5rem 1rem;
+            background: var(--accent2);
+            border: none;
+            border-radius: 6px;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .tab.active { background: var(--accent); }
+        .tab:hover { opacity: 0.8; }
+        .result-box {
+            background: rgba(79, 209, 197, 0.1);
+            border: 1px solid var(--cyan);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .step-box {
+            background: rgba(233, 69, 96, 0.1);
+            border-left: 3px solid var(--accent);
+            padding: 1rem;
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+        canvas { width: 100%; height: 300px; border-radius: 8px; background: rgba(0,0,0,0.2); }
+        .slider-group { margin: 1rem 0; }
+        .slider-group label { display: block; margin-bottom: 0.3rem; color: var(--text-dim); }
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--accent2);
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--cyan);
+            cursor: pointer;
+        }
+        .btn {
+            padding: 0.6rem 1.2rem;
+            background: var(--accent);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            margin: 0.25rem;
+        }
+        .btn:hover { opacity: 0.9; }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+        }
+        .comparison-table th, .comparison-table td {
+            padding: 0.5rem;
+            border: 1px solid var(--accent2);
+            text-align: center;
+        }
+        .comparison-table th { background: var(--accent2); }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第4回：遷移行列の計算</h1>
+            <p style="color: var(--text-dim);">Computing the State Transition Matrix</p>
+        </header>
+        
+        <div class="grid">
+            <div class="card">
+                <h3 class="card-title">📊 システム行列 A</h3>
+                <div class="matrix-grid">
+                    <input type="number" id="a11" value="0" step="0.5">
+                    <input type="number" id="a12" value="1" step="0.5">
+                    <input type="number" id="a21" value="-6" step="0.5">
+                    <input type="number" id="a22" value="-5" step="0.5">
+                </div>
+                <div style="margin-top: 1rem;">
+                    <button class="btn" onclick="compute()">計算実行</button>
+                    <button class="btn" onclick="setExample1()">例1: 実固有値</button>
+                    <button class="btn" onclick="setExample2()">例2: 複素固有値</button>
+                </div>
+                <div class="result-box" style="margin-top: 1rem;">
+                    <div>特性方程式: det(sI - A) = 0</div>
+                    <div id="charEq">s² + 5s + 6 = 0</div>
+                    <div style="margin-top: 0.5rem;">固有値:</div>
+                    <div id="eigenvalues">λ₁ = -2, λ₂ = -3</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🔧 計算方法の選択</h3>
+                <div class="method-tabs">
+                    <button class="tab active" onclick="selectMethod('laplace')">ラプラス変換</button>
+                    <button class="tab" onclick="selectMethod('diag')">対角化</button>
+                    <button class="tab" onclick="selectMethod('cayley')">ケーリー・ハミルトン</button>
+                    <button class="tab" onclick="selectMethod('series')">級数展開</button>
+                </div>
+                <div id="methodDescription" class="step-box">
+                    ラプラス変換法: e^(At) = L⁻¹{(sI-A)⁻¹}
+                </div>
+            </div>
+            
+            <div class="card card-full">
+                <h3 class="card-title">📝 計算ステップ</h3>
+                <div id="steps"></div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📈 遷移行列 e^(At)</h3>
+                <div class="slider-group">
+                    <label>時刻 t = <span id="tVal">1.00</span></label>
+                    <input type="range" id="tSlider" min="0" max="3" step="0.05" value="1">
+                </div>
+                <div class="result-box" id="phiResult">
+                    e^(At) = 
+                    [  3e⁻²ᵗ - 2e⁻³ᵗ    e⁻²ᵗ - e⁻³ᵗ  ]
+                    [ -6e⁻²ᵗ + 6e⁻³ᵗ  -2e⁻²ᵗ + 3e⁻³ᵗ ]
+                </div>
+                <div class="result-box" style="margin-top: 0.5rem;" id="phiNumeric">
+                    t = 1.0 での数値:
+                    [ 0.356   0.086 ]
+                    [-0.516   0.135 ]
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🔢 数値検証</h3>
+                <canvas id="verifyCanvas"></canvas>
+                <p style="color: var(--text-dim); font-size: 0.85rem; margin-top: 0.5rem;">
+                    解析解と級数展開の比較（一致すれば正しい）
+                </p>
+            </div>
+            
+            <div class="card card-full">
+                <h3 class="card-title">⚖️ 計算方法の比較</h3>
+                <table class="comparison-table">
+                    <tr>
+                        <th>方法</th>
+                        <th>利点</th>
+                        <th>欠点</th>
+                        <th>適用条件</th>
+                    </tr>
+                    <tr>
+                        <td>ラプラス変換</td>
+                        <td>直接的で理論的</td>
+                        <td>逆変換が煩雑</td>
+                        <td>任意の行列</td>
+                    </tr>
+                    <tr>
+                        <td>対角化</td>
+                        <td>計算が簡潔</td>
+                        <td>対角化不可の場合あり</td>
+                        <td>対角化可能行列</td>
+                    </tr>
+                    <tr>
+                        <td>ケーリー・ハミルトン</td>
+                        <td>常に適用可能</td>
+                        <td>重根で場合分け必要</td>
+                        <td>任意の行列</td>
+                    </tr>
+                    <tr>
+                        <td>級数展開</td>
+                        <td>数値計算向き</td>
+                        <td>打ち切り誤差</td>
+                        <td>任意の行列</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let A = [[0, 1], [-6, -5]];
+        let currentMethod = 'laplace';
+        let tValue = 1.0;
+        
+        const canvas = document.getElementById('verifyCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function setupCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        
+        function getA() {
+            return [
+                [parseFloat(document.getElementById('a11').value), parseFloat(document.getElementById('a12').value)],
+                [parseFloat(document.getElementById('a21').value), parseFloat(document.getElementById('a22').value)]
+            ];
+        }
+        
+        function eigenvalues2x2(A) {
+            const tr = A[0][0] + A[1][1];
+            const det = A[0][0]*A[1][1] - A[0][1]*A[1][0];
+            const disc = tr*tr - 4*det;
+            if (disc >= 0) {
+                return [
+                    { re: (tr + Math.sqrt(disc))/2, im: 0 },
+                    { re: (tr - Math.sqrt(disc))/2, im: 0 }
+                ];
+            } else {
+                return [
+                    { re: tr/2, im: Math.sqrt(-disc)/2 },
+                    { re: tr/2, im: -Math.sqrt(-disc)/2 }
+                ];
+            }
+        }
+        
+        function matrixExp(A, t, terms = 30) {
+            let result = [[1, 0], [0, 1]];
+            let power = [[1, 0], [0, 1]];
+            let factorial = 1;
+            for (let k = 1; k < terms; k++) {
+                power = [
+                    [power[0][0]*A[0][0] + power[0][1]*A[1][0], power[0][0]*A[0][1] + power[0][1]*A[1][1]],
+                    [power[1][0]*A[0][0] + power[1][1]*A[1][0], power[1][0]*A[0][1] + power[1][1]*A[1][1]]
+                ];
+                factorial *= k;
+                const coef = Math.pow(t, k) / factorial;
+                result = [
+                    [result[0][0] + power[0][0]*coef, result[0][1] + power[0][1]*coef],
+                    [result[1][0] + power[1][0]*coef, result[1][1] + power[1][1]*coef]
+                ];
+            }
+            return result;
+        }
+        
+        function formatComplex(c) {
+            if (Math.abs(c.im) < 0.001) return c.re.toFixed(3);
+            const sign = c.im >= 0 ? '+' : '-';
+            return `${c.re.toFixed(3)} ${sign} ${Math.abs(c.im).toFixed(3)}j`;
+        }
+        
+        function compute() {
+            A = getA();
+            const eigs = eigenvalues2x2(A);
+            const tr = A[0][0] + A[1][1];
+            const det = A[0][0]*A[1][1] - A[0][1]*A[1][0];
+            
+            document.getElementById('charEq').textContent = 
+                `s² ${tr >= 0 ? '+' : '-'} ${Math.abs(tr).toFixed(2)}s ${det >= 0 ? '+' : '-'} ${Math.abs(det).toFixed(2)} = 0`;
+            document.getElementById('eigenvalues').textContent = 
+                `λ₁ = ${formatComplex(eigs[0])}, λ₂ = ${formatComplex(eigs[1])}`;
+            
+            updateSteps();
+            updatePhiResult();
+            drawVerification();
+        }
+        
+        function selectMethod(method) {
+            currentMethod = method;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const descriptions = {
+                'laplace': 'ラプラス変換法: e^(At) = L⁻¹{(sI-A)⁻¹}',
+                'diag': '対角化法: A = PDP⁻¹ ならば e^(At) = Pe^(Dt)P⁻¹',
+                'cayley': 'ケーリー・ハミルトン: e^(At) = α₀(t)I + α₁(t)A',
+                'series': '級数展開: e^(At) = Σ(At)^k/k!'
+            };
+            document.getElementById('methodDescription').textContent = descriptions[method];
+            updateSteps();
+        }
+        
+        function updateSteps() {
+            const A = getA();
+            const eigs = eigenvalues2x2(A);
+            const tr = A[0][0] + A[1][1];
+            const det = A[0][0]*A[1][1] - A[0][1]*A[1][0];
+            let html = '';
+            
+            if (currentMethod === 'laplace') {
+                html = `
+                <div class="step-box">
+                    <strong>Step 1:</strong> sI - A を計算<br>
+                    sI - A = [s - ${A[0][0]}, ${-A[0][1]}; ${-A[1][0]}, s - ${A[1][1]}]
+                </div>
+                <div class="step-box">
+                    <strong>Step 2:</strong> 行列式を計算<br>
+                    det(sI - A) = (s - ${A[0][0]})(s - ${A[1][1]}) - (${-A[0][1]})(${-A[1][0]})<br>
+                    = s² ${tr >= 0 ? '-' : '+'} ${Math.abs(tr).toFixed(2)}s + ${det.toFixed(2)}
+                </div>
+                <div class="step-box">
+                    <strong>Step 3:</strong> (sI - A)⁻¹ を求める<br>
+                    各要素を部分分数展開して逆ラプラス変換
+                </div>`;
+            } else if (currentMethod === 'diag') {
+                html = `
+                <div class="step-box">
+                    <strong>Step 1:</strong> 固有値を求める<br>
+                    λ₁ = ${formatComplex(eigs[0])}, λ₂ = ${formatComplex(eigs[1])}
+                </div>
+                <div class="step-box">
+                    <strong>Step 2:</strong> 固有ベクトルから変換行列 P を構成
+                </div>
+                <div class="step-box">
+                    <strong>Step 3:</strong> e^(At) = Pe^(Dt)P⁻¹ を計算<br>
+                    e^(Dt) = diag(e^(λ₁t), e^(λ₂t))
+                </div>`;
+            } else if (currentMethod === 'cayley') {
+                html = `
+                <div class="step-box">
+                    <strong>Step 1:</strong> e^(At) = α₀(t)I + α₁(t)A と仮定
+                </div>
+                <div class="step-box">
+                    <strong>Step 2:</strong> 固有値を代入して連立方程式<br>
+                    e^(λ₁t) = α₀ + α₁λ₁<br>
+                    e^(λ₂t) = α₀ + α₁λ₂
+                </div>
+                <div class="step-box">
+                    <strong>Step 3:</strong> α₀, α₁ を解いて代入
+                </div>`;
+            } else {
+                html = `
+                <div class="step-box">
+                    <strong>Step 1:</strong> 定義式を直接計算<br>
+                    e^(At) = I + At + (At)²/2! + (At)³/3! + ...
+                </div>
+                <div class="step-box">
+                    <strong>Step 2:</strong> 十分な項数で打ち切り（通常20-30項）
+                </div>
+                <div class="step-box">
+                    <strong>Step 3:</strong> 数値計算ライブラリではパデ近似を使用
+                </div>`;
+            }
+            document.getElementById('steps').innerHTML = html;
+        }
+        
+        function updatePhiResult() {
+            const phi = matrixExp(A, tValue);
+            document.getElementById('phiNumeric').innerHTML = 
+                `t = ${tValue.toFixed(2)} での数値:<br>` +
+                `[ ${phi[0][0].toFixed(4)}   ${phi[0][1].toFixed(4)} ]<br>` +
+                `[ ${phi[1][0].toFixed(4)}   ${phi[1][1].toFixed(4)} ]`;
+        }
+        
+        function drawVerification() {
+            const w = canvas.getBoundingClientRect().width;
+            const h = canvas.getBoundingClientRect().height;
+            
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            const maxT = 3;
+            const data = [];
+            let maxVal = 1;
+            
+            for (let t = 0; t <= maxT; t += 0.05) {
+                const phi = matrixExp(A, t);
+                data.push({ t, phi11: phi[0][0], phi12: phi[0][1] });
+                maxVal = Math.max(maxVal, Math.abs(phi[0][0]), Math.abs(phi[0][1]));
+            }
+            maxVal = Math.min(maxVal, 5);
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (v) => margin.top + plotH/2 - (v / maxVal) * (plotH/2);
+            
+            // グリッド
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = margin.top + (plotH / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(margin.left, y);
+                ctx.lineTo(w - margin.right, y);
+                ctx.stroke();
+            }
+            
+            // Φ₁₁
+            ctx.strokeStyle = '#4fd1c5';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            data.forEach((p, i) => {
+                const clamped = Math.max(-maxVal, Math.min(maxVal, p.phi11));
+                if (i === 0) ctx.moveTo(toX(p.t), toY(clamped));
+                else ctx.lineTo(toX(p.t), toY(clamped));
+            });
+            ctx.stroke();
+            
+            // Φ₁₂
+            ctx.strokeStyle = '#e94560';
+            ctx.beginPath();
+            data.forEach((p, i) => {
+                const clamped = Math.max(-maxVal, Math.min(maxVal, p.phi12));
+                if (i === 0) ctx.moveTo(toX(p.t), toY(clamped));
+                else ctx.lineTo(toX(p.t), toY(clamped));
+            });
+            ctx.stroke();
+            
+            // 現在時刻マーカー
+            ctx.strokeStyle = '#f6e05e';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(toX(tValue), margin.top);
+            ctx.lineTo(toX(tValue), h - margin.bottom);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // ラベル
+            ctx.fillStyle = '#4fd1c5';
+            ctx.font = '12px JetBrains Mono';
+            ctx.fillText('Φ₁₁', w - 50, 30);
+            ctx.fillStyle = '#e94560';
+            ctx.fillText('Φ₁₂', w - 50, 50);
+        }
+        
+        function setExample1() {
+            document.getElementById('a11').value = 0;
+            document.getElementById('a12').value = 1;
+            document.getElementById('a21').value = -6;
+            document.getElementById('a22').value = -5;
+            compute();
+        }
+        
+        function setExample2() {
+            document.getElementById('a11').value = 0;
+            document.getElementById('a12').value = 1;
+            document.getElementById('a21').value = -5;
+            document.getElementById('a22').value = -2;
+            compute();
+        }
+        
+        document.getElementById('tSlider').addEventListener('input', (e) => {
+            tValue = parseFloat(e.target.value);
+            document.getElementById('tVal').textContent = tValue.toFixed(2);
+            updatePhiResult();
+            drawVerification();
+        });
+        
+        window.addEventListener('load', () => {
+            setupCanvas();
+            compute();
+        });
+        window.addEventListener('resize', () => { setupCanvas(); drawVerification(); });
+    </script>
+</body>
+</html>

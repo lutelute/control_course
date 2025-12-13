@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第5回：伝達関数と状態空間表現</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0c1222;
+            --card: #141d30;
+            --accent: #6366f1;
+            --accent2: #22d3ee;
+            --orange: #fb923c;
+            --green: #4ade80;
+            --text: #e2e8f0;
+            --dim: #64748b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        header { text-align: center; padding: 2rem 0; }
+        h1 { font-size: 2rem; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .card { background: var(--card); border-radius: 12px; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.05); }
+        .card-full { grid-column: 1 / -1; }
+        .card-title { color: var(--accent2); margin-bottom: 1rem; font-size: 1.05rem; }
+        .input-row { display: flex; gap: 0.5rem; margin: 0.5rem 0; align-items: center; flex-wrap: wrap; }
+        .input-row label { color: var(--dim); min-width: 80px; }
+        .input-row input { width: 60px; padding: 0.4rem; background: rgba(255,255,255,0.05); border: 1px solid var(--accent); border-radius: 4px; color: var(--text); text-align: center; font-family: 'JetBrains Mono', monospace; }
+        .btn { padding: 0.5rem 1rem; background: var(--accent); border: none; border-radius: 6px; color: white; cursor: pointer; margin: 0.2rem; font-size: 0.9rem; }
+        .btn:hover { opacity: 0.9; }
+        .btn-outline { background: transparent; border: 1px solid var(--accent); }
+        .result-box { background: rgba(99, 102, 241, 0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; margin: 0.5rem 0; overflow-x: auto; }
+        .formula { background: rgba(34, 211, 238, 0.1); border-left: 3px solid var(--accent2); padding: 0.75rem 1rem; margin: 0.5rem 0; font-family: 'JetBrains Mono', monospace; }
+        canvas { width: 100%; height: 280px; border-radius: 8px; background: rgba(0,0,0,0.3); }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .tab { padding: 0.5rem 1rem; background: rgba(255,255,255,0.05); border: 1px solid transparent; border-radius: 6px; color: var(--dim); cursor: pointer; }
+        .tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+        .legend { display: flex; gap: 1rem; margin-top: 0.5rem; flex-wrap: wrap; font-size: 0.85rem; }
+        .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+        .legend-dot { width: 12px; height: 3px; border-radius: 2px; }
+        .arrow { color: var(--accent2); margin: 0 0.5rem; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第5回：伝達関数と状態空間表現</h1>
+            <p style="color: var(--dim);">Transfer Functions and State-Space Representations</p>
+        </header>
+        
+        <div class="grid">
+            <!-- 状態空間表現入力 -->
+            <div class="card">
+                <h3 class="card-title">📊 状態空間表現 → 伝達関数</h3>
+                <p style="color: var(--dim); font-size: 0.9rem; margin-bottom: 1rem;">
+                    G(s) = C(sI - A)⁻¹B + D
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <label style="color: var(--dim);">行列 A (2×2)</label>
+                        <div class="input-row">
+                            <input type="number" id="ss_a11" value="0" step="0.5">
+                            <input type="number" id="ss_a12" value="1" step="0.5">
+                        </div>
+                        <div class="input-row">
+                            <input type="number" id="ss_a21" value="-2" step="0.5">
+                            <input type="number" id="ss_a22" value="-3" step="0.5">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="color: var(--dim);">B, C, D</label>
+                        <div class="input-row">
+                            <span style="color: var(--dim); width: 20px;">B:</span>
+                            <input type="number" id="ss_b1" value="0" step="0.5">
+                            <input type="number" id="ss_b2" value="1" step="0.5">
+                        </div>
+                        <div class="input-row">
+                            <span style="color: var(--dim); width: 20px;">C:</span>
+                            <input type="number" id="ss_c1" value="1" step="0.5">
+                            <input type="number" id="ss_c2" value="0" step="0.5">
+                        </div>
+                        <div class="input-row">
+                            <span style="color: var(--dim); width: 20px;">D:</span>
+                            <input type="number" id="ss_d" value="0" step="0.5">
+                        </div>
+                    </div>
+                </div>
+                <button class="btn" onclick="ssToTf()">伝達関数へ変換</button>
+                <div class="result-box" id="tfResult">
+                    G(s) = 1 / (s² + 3s + 2) = 1 / ((s+1)(s+2))
+                </div>
+                <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--dim);">
+                    極: <span id="poles" style="color: var(--orange);">s = -1, -2</span>
+                </div>
+            </div>
+            
+            <!-- 伝達関数入力 -->
+            <div class="card">
+                <h3 class="card-title">📐 伝達関数 → 状態空間表現</h3>
+                <p style="color: var(--dim); font-size: 0.9rem; margin-bottom: 1rem;">
+                    G(s) = (b₁s + b₀) / (s² + a₁s + a₀)
+                </p>
+                <div class="input-row">
+                    <label>分子:</label>
+                    <input type="number" id="tf_b1" value="0" step="0.5" style="width: 50px;"> s +
+                    <input type="number" id="tf_b0" value="1" step="0.5" style="width: 50px;">
+                </div>
+                <div class="input-row">
+                    <label>分母:</label>
+                    s² + <input type="number" id="tf_a1" value="3" step="0.5" style="width: 50px;"> s +
+                    <input type="number" id="tf_a0" value="2" step="0.5" style="width: 50px;">
+                </div>
+                
+                <div class="tabs" style="margin-top: 1rem;">
+                    <button class="tab active" onclick="selectForm('controllable')">可制御正準形</button>
+                    <button class="tab" onclick="selectForm('observable')">可観測正準形</button>
+                    <button class="tab" onclick="selectForm('diagonal')">対角正準形</button>
+                </div>
+                
+                <button class="btn" onclick="tfToSs()">状態空間表現へ変換</button>
+                <div class="result-box" id="ssResult">
+                    A = [0, 1; -2, -3]
+                    B = [0; 1]
+                    C = [1, 0]
+                    D = 0
+                </div>
+            </div>
+            
+            <!-- ボード線図 -->
+            <div class="card">
+                <h3 class="card-title">📈 ボード線図（ゲイン）</h3>
+                <canvas id="bodeGainCanvas"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--accent2);"></div>|G(jω)| [dB]</div>
+                </div>
+            </div>
+            
+            <!-- 位相線図 -->
+            <div class="card">
+                <h3 class="card-title">📉 ボード線図（位相）</h3>
+                <canvas id="bodePhaseCanvas"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--orange);"></div>∠G(jω) [deg]</div>
+                </div>
+            </div>
+            
+            <!-- 極零配置 -->
+            <div class="card">
+                <h3 class="card-title">🎯 極零配置図</h3>
+                <canvas id="pzCanvas"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><span style="color: var(--accent);">×</span> 極</div>
+                    <div class="legend-item"><span style="color: var(--green);">○</span> 零点</div>
+                </div>
+            </div>
+            
+            <!-- ステップ応答 -->
+            <div class="card">
+                <h3 class="card-title">📊 ステップ応答</h3>
+                <canvas id="stepCanvas"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--green);"></div>y(t)</div>
+                </div>
+            </div>
+            
+            <!-- 正準形の比較 -->
+            <div class="card card-full">
+                <h3 class="card-title">📋 正準形の比較</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                    <div class="formula">
+                        <strong>可制御正準形</strong><br>
+                        A = [0, 1; -a₀, -a₁]<br>
+                        B = [0; 1]<br>
+                        C = [b₀, b₁]
+                    </div>
+                    <div class="formula">
+                        <strong>可観測正準形</strong><br>
+                        A = [0, -a₀; 1, -a₁]<br>
+                        B = [b₀; b₁]<br>
+                        C = [0, 1]
+                    </div>
+                    <div class="formula">
+                        <strong>対角正準形</strong><br>
+                        A = diag(p₁, p₂)<br>
+                        B = [1; 1]<br>
+                        C = [r₁, r₂]
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentForm = 'controllable';
+        
+        // キャンバス
+        const bodeGainCanvas = document.getElementById('bodeGainCanvas');
+        const bodeGainCtx = bodeGainCanvas.getContext('2d');
+        const bodePhaseCanvas = document.getElementById('bodePhaseCanvas');
+        const bodePhaseCtx = bodePhaseCanvas.getContext('2d');
+        const pzCanvas = document.getElementById('pzCanvas');
+        const pzCtx = pzCanvas.getContext('2d');
+        const stepCanvas = document.getElementById('stepCanvas');
+        const stepCtx = stepCanvas.getContext('2d');
+        
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        
+        function initCanvases() {
+            setupCanvas(bodeGainCanvas, bodeGainCtx);
+            setupCanvas(bodePhaseCanvas, bodePhaseCtx);
+            setupCanvas(pzCanvas, pzCtx);
+            setupCanvas(stepCanvas, stepCtx);
+        }
+        
+        function selectForm(form) {
+            currentForm = form;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+        
+        function ssToTf() {
+            const A = [
+                [parseFloat(document.getElementById('ss_a11').value), parseFloat(document.getElementById('ss_a12').value)],
+                [parseFloat(document.getElementById('ss_a21').value), parseFloat(document.getElementById('ss_a22').value)]
+            ];
+            const B = [parseFloat(document.getElementById('ss_b1').value), parseFloat(document.getElementById('ss_b2').value)];
+            const C = [parseFloat(document.getElementById('ss_c1').value), parseFloat(document.getElementById('ss_c2').value)];
+            const D = parseFloat(document.getElementById('ss_d').value);
+            
+            // 特性多項式の係数
+            const a1 = -(A[0][0] + A[1][1]);
+            const a0 = A[0][0]*A[1][1] - A[0][1]*A[1][0];
+            
+            // 極の計算
+            const disc = a1*a1 - 4*a0;
+            let polesStr;
+            let poles = [];
+            if (disc >= 0) {
+                const p1 = (-a1 + Math.sqrt(disc))/2;
+                const p2 = (-a1 - Math.sqrt(disc))/2;
+                poles = [{re: p1, im: 0}, {re: p2, im: 0}];
+                polesStr = `s = ${p1.toFixed(2)}, ${p2.toFixed(2)}`;
+            } else {
+                const re = -a1/2;
+                const im = Math.sqrt(-disc)/2;
+                poles = [{re, im}, {re, im: -im}];
+                polesStr = `s = ${re.toFixed(2)} ± ${im.toFixed(2)}j`;
+            }
+            
+            // 簡易的な伝達関数表示
+            document.getElementById('tfResult').innerHTML = 
+                `G(s) = (${C[0]}·(s+${A[1][1].toFixed(1)}) + ${C[1]}·${(-A[1][0]).toFixed(1)}) / (s² + ${a1.toFixed(2)}s + ${a0.toFixed(2)})<br>` +
+                `分母 = (s² + ${a1.toFixed(2)}s + ${a0.toFixed(2)})`;
+            document.getElementById('poles').textContent = polesStr;
+            
+            drawAll(a1, a0, 0, 1, poles);
+        }
+        
+        function tfToSs() {
+            const b1 = parseFloat(document.getElementById('tf_b1').value);
+            const b0 = parseFloat(document.getElementById('tf_b0').value);
+            const a1 = parseFloat(document.getElementById('tf_a1').value);
+            const a0 = parseFloat(document.getElementById('tf_a0').value);
+            
+            let result = '';
+            if (currentForm === 'controllable') {
+                result = `可制御正準形:\nA = [0, 1; ${-a0}, ${-a1}]\nB = [0; 1]\nC = [${b0}, ${b1}]\nD = 0`;
+            } else if (currentForm === 'observable') {
+                result = `可観測正準形:\nA = [0, ${-a0}; 1, ${-a1}]\nB = [${b0}; ${b1}]\nC = [0, 1]\nD = 0`;
+            } else {
+                const disc = a1*a1 - 4*a0;
+                if (disc >= 0) {
+                    const p1 = (-a1 + Math.sqrt(disc))/2;
+                    const p2 = (-a1 - Math.sqrt(disc))/2;
+                    const r1 = (b1*p1 + b0)/(p1 - p2);
+                    const r2 = (b1*p2 + b0)/(p2 - p1);
+                    result = `対角正準形:\nA = [${p1.toFixed(3)}, 0; 0, ${p2.toFixed(3)}]\nB = [1; 1]\nC = [${r1.toFixed(3)}, ${r2.toFixed(3)}]\nD = 0`;
+                } else {
+                    result = `対角正準形: 複素固有値のため実数形式で表示\nA = [${(-a1/2).toFixed(3)}, ${Math.sqrt(-disc)/2}; ${-Math.sqrt(-disc)/2}, ${(-a1/2).toFixed(3)}]`;
+                }
+            }
+            document.getElementById('ssResult').textContent = result;
+            
+            // 極の計算
+            const disc = a1*a1 - 4*a0;
+            let poles = [];
+            if (disc >= 0) {
+                poles = [{re: (-a1 + Math.sqrt(disc))/2, im: 0}, {re: (-a1 - Math.sqrt(disc))/2, im: 0}];
+            } else {
+                const re = -a1/2, im = Math.sqrt(-disc)/2;
+                poles = [{re, im}, {re, im: -im}];
+            }
+            
+            drawAll(a1, a0, b1, b0, poles);
+        }
+        
+        function drawAll(a1, a0, b1, b0, poles) {
+            drawBodeGain(a1, a0, b1, b0);
+            drawBodePhase(a1, a0, b1, b0);
+            drawPoleZero(poles);
+            drawStep(a1, a0, b1, b0);
+        }
+        
+        function evalTf(a1, a0, b1, b0, omega) {
+            // G(jω) = (b1*jω + b0) / ((jω)² + a1*jω + a0)
+            const numRe = b0, numIm = b1 * omega;
+            const denRe = a0 - omega*omega, denIm = a1 * omega;
+            const denMag2 = denRe*denRe + denIm*denIm;
+            const re = (numRe*denRe + numIm*denIm) / denMag2;
+            const im = (numIm*denRe - numRe*denIm) / denMag2;
+            return { mag: Math.sqrt(re*re + im*im), phase: Math.atan2(im, re) };
+        }
+        
+        function drawBodeGain(a1, a0, b1, b0) {
+            const w = bodeGainCanvas.getBoundingClientRect().width;
+            const h = bodeGainCanvas.getBoundingClientRect().height;
+            bodeGainCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            bodeGainCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            const data = [];
+            for (let logW = -2; logW <= 2; logW += 0.05) {
+                const omega = Math.pow(10, logW);
+                const g = evalTf(a1, a0, b1, b0, omega);
+                const dB = 20 * Math.log10(Math.max(g.mag, 1e-10));
+                data.push({ logW, dB });
+            }
+            
+            const minDb = -60, maxDb = 20;
+            const toX = (logW) => margin.left + ((logW + 2) / 4) * plotW;
+            const toY = (dB) => margin.top + plotH - ((dB - minDb) / (maxDb - minDb)) * plotH;
+            
+            // グリッド
+            bodeGainCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            bodeGainCtx.lineWidth = 1;
+            for (let db = minDb; db <= maxDb; db += 20) {
+                bodeGainCtx.beginPath();
+                bodeGainCtx.moveTo(margin.left, toY(db));
+                bodeGainCtx.lineTo(w - margin.right, toY(db));
+                bodeGainCtx.stroke();
+            }
+            
+            // 0dBライン
+            bodeGainCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            bodeGainCtx.beginPath();
+            bodeGainCtx.moveTo(margin.left, toY(0));
+            bodeGainCtx.lineTo(w - margin.right, toY(0));
+            bodeGainCtx.stroke();
+            
+            // ゲイン曲線
+            bodeGainCtx.strokeStyle = '#22d3ee';
+            bodeGainCtx.lineWidth = 2;
+            bodeGainCtx.beginPath();
+            data.forEach((p, i) => {
+                const y = Math.max(margin.top, Math.min(h - margin.bottom, toY(p.dB)));
+                if (i === 0) bodeGainCtx.moveTo(toX(p.logW), y);
+                else bodeGainCtx.lineTo(toX(p.logW), y);
+            });
+            bodeGainCtx.stroke();
+            
+            // ラベル
+            bodeGainCtx.fillStyle = 'rgba(255,255,255,0.5)';
+            bodeGainCtx.font = '10px JetBrains Mono';
+            bodeGainCtx.fillText('0.01', margin.left, h - 10);
+            bodeGainCtx.fillText('100', w - margin.right - 20, h - 10);
+            bodeGainCtx.fillText('ω [rad/s]', w/2, h - 5);
+        }
+        
+        function drawBodePhase(a1, a0, b1, b0) {
+            const w = bodePhaseCanvas.getBoundingClientRect().width;
+            const h = bodePhaseCanvas.getBoundingClientRect().height;
+            bodePhaseCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            bodePhaseCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            const data = [];
+            for (let logW = -2; logW <= 2; logW += 0.05) {
+                const omega = Math.pow(10, logW);
+                const g = evalTf(a1, a0, b1, b0, omega);
+                data.push({ logW, phase: g.phase * 180 / Math.PI });
+            }
+            
+            const minPhase = -180, maxPhase = 0;
+            const toX = (logW) => margin.left + ((logW + 2) / 4) * plotW;
+            const toY = (ph) => margin.top + plotH - ((ph - minPhase) / (maxPhase - minPhase)) * plotH;
+            
+            // グリッド
+            bodePhaseCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            for (let ph = minPhase; ph <= maxPhase; ph += 45) {
+                bodePhaseCtx.beginPath();
+                bodePhaseCtx.moveTo(margin.left, toY(ph));
+                bodePhaseCtx.lineTo(w - margin.right, toY(ph));
+                bodePhaseCtx.stroke();
+            }
+            
+            // 位相曲線
+            bodePhaseCtx.strokeStyle = '#fb923c';
+            bodePhaseCtx.lineWidth = 2;
+            bodePhaseCtx.beginPath();
+            data.forEach((p, i) => {
+                if (i === 0) bodePhaseCtx.moveTo(toX(p.logW), toY(p.phase));
+                else bodePhaseCtx.lineTo(toX(p.logW), toY(p.phase));
+            });
+            bodePhaseCtx.stroke();
+        }
+        
+        function drawPoleZero(poles) {
+            const w = pzCanvas.getBoundingClientRect().width;
+            const h = pzCanvas.getBoundingClientRect().height;
+            pzCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            pzCtx.fillRect(0, 0, w, h);
+            
+            const cx = w/2, cy = h/2;
+            const scale = Math.min(w, h) / 8;
+            
+            // グリッド
+            pzCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            pzCtx.lineWidth = 1;
+            for (let i = -3; i <= 3; i++) {
+                pzCtx.beginPath();
+                pzCtx.moveTo(cx + i*scale, 20);
+                pzCtx.lineTo(cx + i*scale, h-20);
+                pzCtx.stroke();
+                pzCtx.beginPath();
+                pzCtx.moveTo(20, cy + i*scale);
+                pzCtx.lineTo(w-20, cy + i*scale);
+                pzCtx.stroke();
+            }
+            
+            // 軸
+            pzCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+            pzCtx.lineWidth = 2;
+            pzCtx.beginPath();
+            pzCtx.moveTo(20, cy);
+            pzCtx.lineTo(w-20, cy);
+            pzCtx.moveTo(cx, 20);
+            pzCtx.lineTo(cx, h-20);
+            pzCtx.stroke();
+            
+            // 極をプロット
+            pzCtx.strokeStyle = '#6366f1';
+            pzCtx.lineWidth = 3;
+            poles.forEach(p => {
+                const x = cx + p.re * scale;
+                const y = cy - p.im * scale;
+                pzCtx.beginPath();
+                pzCtx.moveTo(x - 8, y - 8);
+                pzCtx.lineTo(x + 8, y + 8);
+                pzCtx.moveTo(x + 8, y - 8);
+                pzCtx.lineTo(x - 8, y + 8);
+                pzCtx.stroke();
+            });
+            
+            // ラベル
+            pzCtx.fillStyle = 'rgba(255,255,255,0.5)';
+            pzCtx.font = '11px JetBrains Mono';
+            pzCtx.fillText('Re', w - 30, cy - 5);
+            pzCtx.fillText('Im', cx + 5, 25);
+        }
+        
+        function drawStep(a1, a0, b1, b0) {
+            const w = stepCanvas.getBoundingClientRect().width;
+            const h = stepCanvas.getBoundingClientRect().height;
+            stepCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            stepCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            // 簡易ステップ応答（数値積分）
+            const dt = 0.01;
+            const maxT = 10;
+            const data = [];
+            let x1 = 0, x2 = 0;
+            const A = [[0, 1], [-a0, -a1]];
+            const B = [0, 1];
+            const C = [b0, b1];
+            
+            for (let t = 0; t <= maxT; t += dt) {
+                const y = C[0]*x1 + C[1]*x2;
+                data.push({ t, y });
+                const u = 1; // ステップ入力
+                const dx1 = A[0][0]*x1 + A[0][1]*x2 + B[0]*u;
+                const dx2 = A[1][0]*x1 + A[1][1]*x2 + B[1]*u;
+                x1 += dx1 * dt;
+                x2 += dx2 * dt;
+            }
+            
+            let maxY = Math.max(...data.map(d => Math.abs(d.y)), 1);
+            maxY = Math.min(maxY, 5);
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (y) => margin.top + plotH/2 - (y / maxY) * (plotH/2);
+            
+            // グリッド
+            stepCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            for (let i = 0; i <= 4; i++) {
+                const y = margin.top + (plotH/4)*i;
+                stepCtx.beginPath();
+                stepCtx.moveTo(margin.left, y);
+                stepCtx.lineTo(w - margin.right, y);
+                stepCtx.stroke();
+            }
+            
+            // 応答曲線
+            stepCtx.strokeStyle = '#4ade80';
+            stepCtx.lineWidth = 2;
+            stepCtx.beginPath();
+            data.forEach((p, i) => {
+                const cy = Math.max(margin.top, Math.min(h - margin.bottom, toY(p.y)));
+                if (i === 0) stepCtx.moveTo(toX(p.t), cy);
+                else stepCtx.lineTo(toX(p.t), cy);
+            });
+            stepCtx.stroke();
+        }
+        
+        window.addEventListener('load', () => {
+            initCanvases();
+            ssToTf();
+        });
+        window.addEventListener('resize', () => { initCanvases(); ssToTf(); });
+    </script>
+</body>
+</html>

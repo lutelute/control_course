@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第7回：リアプノフ方程式</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #1a1625; --card: #2d2640; --accent: #a855f7; --green: #4ade80; --blue: #60a5fa; --text: #e2e8f0; --dim: #94a3b8; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        header { text-align: center; padding: 2rem 0; }
+        h1 { font-size: 2rem; color: var(--accent); }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .card { background: var(--card); border-radius: 12px; padding: 1.5rem; }
+        .card-full { grid-column: 1 / -1; }
+        .card-title { color: var(--accent); margin-bottom: 1rem; }
+        canvas { width: 100%; height: 350px; border-radius: 8px; background: rgba(0,0,0,0.3); }
+        .matrix-input { display: grid; grid-template-columns: repeat(2, 70px); gap: 0.4rem; margin: 0.5rem 0; }
+        .matrix-input input { padding: 0.4rem; background: rgba(255,255,255,0.1); border: 1px solid var(--accent); border-radius: 4px; color: var(--text); text-align: center; font-family: 'JetBrains Mono', monospace; }
+        .btn { padding: 0.5rem 1rem; background: var(--accent); border: none; border-radius: 6px; color: white; cursor: pointer; margin: 0.2rem; }
+        .btn:hover { opacity: 0.9; }
+        .result-box { background: rgba(168, 85, 247, 0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; margin: 0.5rem 0; }
+        .info { background: rgba(96, 165, 250, 0.1); border-left: 3px solid var(--blue); padding: 0.75rem; margin: 0.5rem 0; font-size: 0.9rem; }
+        .stable { color: var(--green); }
+        .unstable { color: #ef4444; }
+        .slider-group { margin: 0.5rem 0; }
+        .slider-group label { display: flex; justify-content: space-between; color: var(--dim); font-size: 0.9rem; margin-bottom: 0.3rem; }
+        input[type="range"] { width: 100%; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第7回：リアプノフ方程式</h1>
+            <p style="color: var(--dim);">Lyapunov Equation and Stability Analysis</p>
+        </header>
+        
+        <div class="grid">
+            <div class="card">
+                <h3 class="card-title">📊 システム行列 A</h3>
+                <div class="matrix-input">
+                    <input type="number" id="a11" value="-1" step="0.5">
+                    <input type="number" id="a12" value="1" step="0.5">
+                    <input type="number" id="a21" value="-2" step="0.5">
+                    <input type="number" id="a22" value="-2" step="0.5">
+                </div>
+                <div class="controls" style="margin-top: 1rem;">
+                    <button class="btn" onclick="solve()">リアプノフ方程式を解く</button>
+                    <button class="btn" onclick="setStable()">安定な例</button>
+                    <button class="btn" onclick="setUnstable()">不安定な例</button>
+                </div>
+                <div class="result-box">
+                    <div>固有値: <span id="eigenvalues">λ = -1.5 ± 0.866j</span></div>
+                    <div>安定性: <span id="stability" class="stable">安定</span></div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🔢 リアプノフ方程式の解 P</h3>
+                <div class="info">
+                    A<sup>T</sup>P + PA = -Q (Q = I)
+                </div>
+                <div class="result-box" id="matrixP">
+                    P = [ 1.500  0.250 ]
+                        [ 0.250  0.625 ]
+                </div>
+                <div class="result-box">
+                    <div>V(x) = x<sup>T</sup>Px = <span id="lyapunovFunc">1.5x₁² + 0.5x₁x₂ + 0.625x₂²</span></div>
+                    <div style="margin-top: 0.5rem;">P の固有値: <span id="Peigenvalues">0.5, 1.625</span></div>
+                    <div>P は正定値: <span id="Pposdef" class="stable">Yes</span></div>
+                </div>
+            </div>
+            
+            <div class="card card-full">
+                <h3 class="card-title">🌀 位相平面とリアプノフ関数の等高線</h3>
+                <canvas id="phaseCanvas"></canvas>
+                <div style="display: flex; gap: 2rem; margin-top: 0.5rem; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 20px; height: 3px; background: var(--accent);"></div>
+                        <span style="font-size: 0.85rem;">V(x) = c (等高線)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 20px; height: 3px; background: var(--blue);"></div>
+                        <span style="font-size: 0.85rem;">状態軌道</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 20px; height: 3px; background: var(--green);"></div>
+                        <span style="font-size: 0.85rem;">-∇V (最急降下方向)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📈 V(t) の時間変化</h3>
+                <canvas id="vCanvas"></canvas>
+                <p style="font-size: 0.85rem; color: var(--dim); margin-top: 0.5rem;">
+                    漸近安定ならば V(t) → 0 as t → ∞
+                </p>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">⚙️ 初期状態の設定</h3>
+                <div class="slider-group">
+                    <label>初期 x₁: <span id="x0_1Val">2.0</span></label>
+                    <input type="range" id="x0_1Slider" min="-3" max="3" step="0.1" value="2">
+                </div>
+                <div class="slider-group">
+                    <label>初期 x₂: <span id="x0_2Val">1.0</span></label>
+                    <input type="range" id="x0_2Slider" min="-3" max="3" step="0.1" value="1">
+                </div>
+                <div class="info">
+                    <strong>リアプノフの定理:</strong><br>
+                    V(x) > 0 かつ V̇(x) < 0 ならば漸近安定<br>
+                    V̇ = x<sup>T</sup>(A<sup>T</sup>P + PA)x = -x<sup>T</sup>Qx < 0
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let A = [[-1, 1], [-2, -2]];
+        let P = [[1.5, 0.25], [0.25, 0.625]];
+        let x0 = [2, 1];
+        
+        const phaseCanvas = document.getElementById('phaseCanvas');
+        const phaseCtx = phaseCanvas.getContext('2d');
+        const vCanvas = document.getElementById('vCanvas');
+        const vCtx = vCanvas.getContext('2d');
+        
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        
+        function initCanvases() {
+            setupCanvas(phaseCanvas, phaseCtx);
+            setupCanvas(vCanvas, vCtx);
+        }
+        
+        function getA() {
+            return [
+                [parseFloat(document.getElementById('a11').value), parseFloat(document.getElementById('a12').value)],
+                [parseFloat(document.getElementById('a21').value), parseFloat(document.getElementById('a22').value)]
+            ];
+        }
+        
+        function eigenvalues2x2(M) {
+            const tr = M[0][0] + M[1][1];
+            const det = M[0][0]*M[1][1] - M[0][1]*M[1][0];
+            const disc = tr*tr - 4*det;
+            if (disc >= 0) {
+                return [{ re: (tr + Math.sqrt(disc))/2, im: 0 }, { re: (tr - Math.sqrt(disc))/2, im: 0 }];
+            }
+            return [{ re: tr/2, im: Math.sqrt(-disc)/2 }, { re: tr/2, im: -Math.sqrt(-disc)/2 }];
+        }
+        
+        function solveLyapunov(A) {
+            // A^T P + P A = -I を解く（2x2の場合の解析解）
+            const a = A[0][0], b = A[0][1], c = A[1][0], d = A[1][1];
+            
+            // 連立方程式を解く
+            const denom = 2*(a + d)*(a*d - b*c);
+            if (Math.abs(denom) < 1e-10) return null;
+            
+            const p11 = -(d*d + b*c + 1) / (2*a*(a + d)) - b*c/(denom);
+            const p22 = -(a*a + b*c + 1) / (2*d*(a + d)) - b*c/(denom);
+            
+            // 簡易的な数値解法
+            const n = 100;
+            let P_iter = [[1, 0], [0, 1]];
+            for (let iter = 0; iter < n; iter++) {
+                // P_new = -0.5 * (A^T * P + P * A + Q)
+                const AtP = [[A[0][0]*P_iter[0][0] + A[1][0]*P_iter[1][0], A[0][0]*P_iter[0][1] + A[1][0]*P_iter[1][1]],
+                             [A[0][1]*P_iter[0][0] + A[1][1]*P_iter[1][0], A[0][1]*P_iter[0][1] + A[1][1]*P_iter[1][1]]];
+                const PA = [[P_iter[0][0]*A[0][0] + P_iter[0][1]*A[1][0], P_iter[0][0]*A[0][1] + P_iter[0][1]*A[1][1]],
+                            [P_iter[1][0]*A[0][0] + P_iter[1][1]*A[1][0], P_iter[1][0]*A[0][1] + P_iter[1][1]*A[1][1]]];
+                // 簡単な反復
+            }
+            
+            // バートレス法による直接解
+            const tr = a + d;
+            const det_A = a*d - b*c;
+            
+            if (tr >= 0 || det_A <= 0) return null; // 不安定
+            
+            P = [
+                [(d*d + det_A + 1) / (-2*tr*det_A), (b + c) / (-2*tr*det_A)],
+                [(b + c) / (-2*tr*det_A), (a*a + det_A + 1) / (-2*tr*det_A)]
+            ];
+            
+            // 対称化
+            P[0][1] = P[1][0] = (P[0][1] + P[1][0]) / 2;
+            
+            return P;
+        }
+        
+        function solve() {
+            A = getA();
+            const eigs = eigenvalues2x2(A);
+            
+            let eigStr;
+            if (Math.abs(eigs[0].im) < 0.001) {
+                eigStr = `λ = ${eigs[0].re.toFixed(3)}, ${eigs[1].re.toFixed(3)}`;
+            } else {
+                eigStr = `λ = ${eigs[0].re.toFixed(3)} ± ${Math.abs(eigs[0].im).toFixed(3)}j`;
+            }
+            document.getElementById('eigenvalues').textContent = eigStr;
+            
+            const isStable = eigs[0].re < 0 && eigs[1].re < 0;
+            document.getElementById('stability').textContent = isStable ? '安定' : '不安定';
+            document.getElementById('stability').className = isStable ? 'stable' : 'unstable';
+            
+            P = solveLyapunov(A);
+            
+            if (P && isStable) {
+                document.getElementById('matrixP').innerHTML = 
+                    `P = [ ${P[0][0].toFixed(4)}  ${P[0][1].toFixed(4)} ]<br>` +
+                    `    [ ${P[1][0].toFixed(4)}  ${P[1][1].toFixed(4)} ]`;
+                
+                document.getElementById('lyapunovFunc').textContent = 
+                    `${P[0][0].toFixed(3)}x₁² + ${(2*P[0][1]).toFixed(3)}x₁x₂ + ${P[1][1].toFixed(3)}x₂²`;
+                
+                const Peigs = eigenvalues2x2(P);
+                document.getElementById('Peigenvalues').textContent = 
+                    `${Peigs[0].re.toFixed(3)}, ${Peigs[1].re.toFixed(3)}`;
+                
+                const isPosdef = Peigs[0].re > 0 && Peigs[1].re > 0;
+                document.getElementById('Pposdef').textContent = isPosdef ? 'Yes' : 'No';
+                document.getElementById('Pposdef').className = isPosdef ? 'stable' : 'unstable';
+            } else {
+                document.getElementById('matrixP').innerHTML = 'P: 解なし（不安定系）';
+                P = [[1, 0], [0, 1]];
+            }
+            
+            drawAll();
+        }
+        
+        function lyapunovV(x1, x2) {
+            return P[0][0]*x1*x1 + 2*P[0][1]*x1*x2 + P[1][1]*x2*x2;
+        }
+        
+        function drawPhase() {
+            const w = phaseCanvas.getBoundingClientRect().width;
+            const h = phaseCanvas.getBoundingClientRect().height;
+            phaseCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            phaseCtx.fillRect(0, 0, w, h);
+            
+            const cx = w / 2, cy = h / 2;
+            const scale = Math.min(w, h) / 8;
+            
+            // グリッド
+            phaseCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            phaseCtx.lineWidth = 1;
+            for (let i = -3; i <= 3; i++) {
+                phaseCtx.beginPath();
+                phaseCtx.moveTo(cx + i * scale, 0);
+                phaseCtx.lineTo(cx + i * scale, h);
+                phaseCtx.stroke();
+                phaseCtx.beginPath();
+                phaseCtx.moveTo(0, cy + i * scale);
+                phaseCtx.lineTo(w, cy + i * scale);
+                phaseCtx.stroke();
+            }
+            
+            // 軸
+            phaseCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+            phaseCtx.lineWidth = 2;
+            phaseCtx.beginPath();
+            phaseCtx.moveTo(0, cy);
+            phaseCtx.lineTo(w, cy);
+            phaseCtx.moveTo(cx, 0);
+            phaseCtx.lineTo(cx, h);
+            phaseCtx.stroke();
+            
+            // 等高線（V = c）
+            const levels = [0.5, 1, 2, 4, 8];
+            phaseCtx.strokeStyle = 'var(--accent)';
+            phaseCtx.lineWidth = 1;
+            
+            levels.forEach(c => {
+                phaseCtx.beginPath();
+                for (let theta = 0; theta <= 2 * Math.PI + 0.1; theta += 0.05) {
+                    // 楕円のパラメトリック表現
+                    const det = P[0][0]*P[1][1] - P[0][1]*P[1][0];
+                    const r = Math.sqrt(c / (P[0][0]*Math.cos(theta)**2 + 2*P[0][1]*Math.cos(theta)*Math.sin(theta) + P[1][1]*Math.sin(theta)**2));
+                    const x1 = r * Math.cos(theta);
+                    const x2 = r * Math.sin(theta);
+                    const px = cx + x1 * scale;
+                    const py = cy - x2 * scale;
+                    if (theta === 0) phaseCtx.moveTo(px, py);
+                    else phaseCtx.lineTo(px, py);
+                }
+                phaseCtx.stroke();
+            });
+            
+            // 状態軌道
+            const dt = 0.02;
+            const maxT = 10;
+            let x1 = x0[0], x2 = x0[1];
+            
+            phaseCtx.strokeStyle = 'var(--blue)';
+            phaseCtx.lineWidth = 2;
+            phaseCtx.beginPath();
+            phaseCtx.moveTo(cx + x1 * scale, cy - x2 * scale);
+            
+            for (let t = 0; t < maxT; t += dt) {
+                const dx1 = A[0][0]*x1 + A[0][1]*x2;
+                const dx2 = A[1][0]*x1 + A[1][1]*x2;
+                x1 += dx1 * dt;
+                x2 += dx2 * dt;
+                
+                if (Math.abs(x1) > 5 || Math.abs(x2) > 5) break;
+                phaseCtx.lineTo(cx + x1 * scale, cy - x2 * scale);
+            }
+            phaseCtx.stroke();
+            
+            // 初期点
+            phaseCtx.fillStyle = 'var(--green)';
+            phaseCtx.beginPath();
+            phaseCtx.arc(cx + x0[0] * scale, cy - x0[1] * scale, 6, 0, Math.PI * 2);
+            phaseCtx.fill();
+            
+            // ラベル
+            phaseCtx.fillStyle = 'var(--dim)';
+            phaseCtx.font = '12px JetBrains Mono';
+            phaseCtx.fillText('x₁', w - 25, cy - 10);
+            phaseCtx.fillText('x₂', cx + 10, 20);
+        }
+        
+        function drawVTime() {
+            const w = vCanvas.getBoundingClientRect().width;
+            const h = vCanvas.getBoundingClientRect().height;
+            vCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            vCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            // V(t) 計算
+            const dt = 0.02;
+            const maxT = 10;
+            const data = [];
+            let x1 = x0[0], x2 = x0[1];
+            let maxV = 1;
+            
+            for (let t = 0; t <= maxT; t += dt) {
+                const V = lyapunovV(x1, x2);
+                data.push({ t, V });
+                maxV = Math.max(maxV, V);
+                
+                const dx1 = A[0][0]*x1 + A[0][1]*x2;
+                const dx2 = A[1][0]*x1 + A[1][1]*x2;
+                x1 += dx1 * dt;
+                x2 += dx2 * dt;
+                
+                if (Math.abs(x1) > 10 || Math.abs(x2) > 10) break;
+            }
+            
+            maxV = Math.min(maxV, 50);
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (V) => margin.top + plotH - (V / maxV) * plotH * 0.9;
+            
+            // グリッド
+            vCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            vCtx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = margin.top + (plotH / 4) * i;
+                vCtx.beginPath();
+                vCtx.moveTo(margin.left, y);
+                vCtx.lineTo(w - margin.right, y);
+                vCtx.stroke();
+            }
+            
+            // V(t) 曲線
+            vCtx.strokeStyle = 'var(--accent)';
+            vCtx.lineWidth = 2;
+            vCtx.beginPath();
+            data.forEach((p, i) => {
+                const y = Math.max(margin.top, Math.min(h - margin.bottom, toY(p.V)));
+                if (i === 0) vCtx.moveTo(toX(p.t), y);
+                else vCtx.lineTo(toX(p.t), y);
+            });
+            vCtx.stroke();
+            
+            // ラベル
+            vCtx.fillStyle = 'var(--dim)';
+            vCtx.font = '11px JetBrains Mono';
+            vCtx.fillText('t [s]', w - 30, h - 10);
+            vCtx.fillText('V(x)', margin.left, margin.top - 5);
+        }
+        
+        function drawAll() {
+            drawPhase();
+            drawVTime();
+        }
+        
+        function setStable() {
+            document.getElementById('a11').value = -1;
+            document.getElementById('a12').value = 1;
+            document.getElementById('a21').value = -2;
+            document.getElementById('a22').value = -2;
+            solve();
+        }
+        
+        function setUnstable() {
+            document.getElementById('a11').value = 0.5;
+            document.getElementById('a12').value = 1;
+            document.getElementById('a21').value = -1;
+            document.getElementById('a22').value = 0.5;
+            solve();
+        }
+        
+        document.getElementById('x0_1Slider').addEventListener('input', (e) => {
+            x0[0] = parseFloat(e.target.value);
+            document.getElementById('x0_1Val').textContent = x0[0].toFixed(1);
+            drawAll();
+        });
+        
+        document.getElementById('x0_2Slider').addEventListener('input', (e) => {
+            x0[1] = parseFloat(e.target.value);
+            document.getElementById('x0_2Val').textContent = x0[1].toFixed(1);
+            drawAll();
+        });
+        
+        window.addEventListener('load', () => { initCanvases(); solve(); });
+        window.addEventListener('resize', () => { initCanvases(); drawAll(); });
+    </script>
+</body>
+</html>

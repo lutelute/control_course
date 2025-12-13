@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>制御工学 - 状態空間法による現代制御理論</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --border: #30363d;
+            --accent: #58a6ff;
+            --green: #3fb950;
+            --yellow: #d29922;
+            --purple: #a371f7;
+            --red: #f85149;
+            --text: #c9d1d9;
+            --dim: #8b949e;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        header {
+            text-align: center;
+            padding: 3rem 0;
+            background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1));
+            border-radius: 16px;
+            margin-bottom: 2rem;
+        }
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            color: var(--dim);
+            font-size: 1.1rem;
+        }
+        .course-info {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        .info-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .info-card .number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .info-card .label {
+            color: var(--dim);
+            font-size: 0.9rem;
+        }
+        .section-title {
+            font-size: 1.5rem;
+            color: var(--accent);
+            margin: 2rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border);
+        }
+        .lecture-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        .lecture-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+            text-decoration: none;
+            color: inherit;
+        }
+        .lecture-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(88,166,255,0.15);
+        }
+        .lecture-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        .lecture-num {
+            background: var(--accent);
+            color: var(--bg);
+            font-weight: 700;
+            padding: 0.3rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+        .lecture-title {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        .lecture-desc {
+            color: var(--dim);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        .lecture-links {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .link-btn {
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .link-notes {
+            background: rgba(163,113,247,0.2);
+            color: var(--purple);
+            border: 1px solid var(--purple);
+        }
+        .link-notes:hover {
+            background: var(--purple);
+            color: white;
+        }
+        .link-interactive {
+            background: rgba(63,185,80,0.2);
+            color: var(--green);
+            border: 1px solid var(--green);
+        }
+        .link-interactive:hover {
+            background: var(--green);
+            color: white;
+        }
+        .part-label {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .part-1 { background: rgba(88,166,255,0.2); color: var(--accent); }
+        .part-2 { background: rgba(63,185,80,0.2); color: var(--green); }
+        .part-3 { background: rgba(210,153,34,0.2); color: var(--yellow); }
+        .part-4 { background: rgba(163,113,247,0.2); color: var(--purple); }
+        
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--dim);
+            margin-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+        @media (max-width: 900px) {
+            .course-info { grid-template-columns: repeat(2, 1fr); }
+            .lecture-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 500px) {
+            .course-info { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>制御工学</h1>
+            <p class="subtitle">状態空間法による現代制御理論</p>
+            <p class="subtitle" style="margin-top: 0.5rem; font-size: 0.95rem;">State-Space Methods in Modern Control Theory</p>
+        </header>
+        
+        <div class="course-info">
+            <div class="info-card">
+                <div class="number">16</div>
+                <div class="label">講義回数</div>
+            </div>
+            <div class="info-card">
+                <div class="number">32</div>
+                <div class="label">教材ファイル</div>
+            </div>
+            <div class="info-card">
+                <div class="number">16</div>
+                <div class="label">インタラクティブ演習</div>
+            </div>
+            <div class="info-card">
+                <div class="number">4</div>
+                <div class="label">学習パート</div>
+            </div>
+        </div>
+        
+        <!-- Part 1: 基礎 -->
+        <h2 class="section-title">Part 1: 基礎理論</h2>
+        <div class="lecture-grid">
+            <div class="lecture-card">
+                <span class="part-label part-1">基礎</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第1回</span>
+                    <span class="lecture-title">状態空間表現</span>
+                </div>
+                <p class="lecture-desc">システムの状態空間表現、状態変数、状態方程式と出力方程式の導出</p>
+                <div class="lecture-links">
+                    <a href="lecture_01/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_01/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+            <div class="lecture-card">
+                <span class="part-label part-1">基礎</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第2回</span>
+                    <span class="lecture-title">PID制御</span>
+                </div>
+                <p class="lecture-desc">比例・積分・微分制御、ゲイン調整法、古典制御との関連</p>
+                <div class="lecture-links">
+                    <a href="lecture_02/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_02/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+            <div class="lecture-card">
+                <span class="part-label part-1">基礎</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第3回</span>
+                    <span class="lecture-title">状態方程式の解</span>
+                </div>
+                <p class="lecture-desc">状態遷移行列、畳み込み積分、初期値問題の解法</p>
+                <div class="lecture-links">
+                    <a href="lecture_03/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_03/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+            <div class="lecture-card">
+                <span class="part-label part-1">基礎</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第4回</span>
+                    <span class="lecture-title">遷移行列の計算</span>
+                </div>
+                <p class="lecture-desc">行列指数関数、ラプラス変換法、対角化法、ケーリー・ハミルトンの定理</p>
+                <div class="lecture-links">
+                    <a href="lecture_04/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_04/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Part 2: 解析 -->
+        <h2 class="section-title">Part 2: システム解析</h2>
+        <div class="lecture-grid">
+            <div class="lecture-card">
+                <span class="part-label part-2">解析</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第5回</span>
+                    <span class="lecture-title">伝達関数と状態空間表現</span>
+                </div>
+                <p class="lecture-desc">伝達関数の導出、極と固有値の関係、正準形への変換</p>
+                <div class="lecture-links">
+                    <a href="lecture_05/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_05/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+            <div class="lecture-card">
+                <span class="part-label part-2">解析</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第6回</span>
+                    <span class="lecture-title">安定性と極</span>
+                </div>
+                <p class="lecture-desc">漸近安定性、BIBO安定性、ラウス・フルビッツ判別法、s平面解析</p>
+                <div class="lecture-links">
+                    <a href="lecture_06/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_06/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+            <div class="lecture-card">
+                <span class="part-label part-2">解析</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第7回</span>
+                    <span class="lecture-title">リアプノフ方程式</span>
+                </div>
+                <p class="lecture-desc">リアプノフ関数、リアプノフの安定定理、リアプノフ方程式の解法</p>
+                <div class="lecture-links">
+                    <a href="lecture_07/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_07/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+            <div class="lecture-card">
+                <span class="part-label part-2">解析</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第8回</span>
+                    <span class="lecture-title">可制御性</span>
+                </div>
+                <p class="lecture-desc">可制御性行列、ランク条件、可制御正準形、グラム行列</p>
+                <div class="lecture-links">
+                    <a href="lecture_08/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_08/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+            <div class="lecture-card">
+                <span class="part-label part-2">解析</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第9回</span>
+                    <span class="lecture-title">可観測性</span>
+                </div>
+                <p class="lecture-desc">可観測性行列、可観測正準形、可制御性との双対性</p>
+                <div class="lecture-links">
+                    <a href="lecture_09/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_09/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Part 3: 設計 -->
+        <h2 class="section-title">Part 3: 制御器設計</h2>
+        <div class="lecture-grid">
+            <div class="lecture-card">
+                <span class="part-label part-3">設計</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第10回</span>
+                    <span class="lecture-title">状態フィードバックと極配置</span>
+                </div>
+                <p class="lecture-desc">状態フィードバック制御、アッカーマンの公式、極配置設計</p>
+                <div class="lecture-links">
+                    <a href="lecture_10/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_10/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+            <div class="lecture-card">
+                <span class="part-label part-3">設計</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第11回</span>
+                    <span class="lecture-title">オブザーバ</span>
+                </div>
+                <p class="lecture-desc">状態推定器、ルーエンバーガーオブザーバ、分離定理</p>
+                <div class="lecture-links">
+                    <a href="lecture_11/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_11/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+            <div class="lecture-card">
+                <span class="part-label part-3">設計</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第12回</span>
+                    <span class="lecture-title">最適レギュレータ（LQR）</span>
+                </div>
+                <p class="lecture-desc">2次形式評価関数、最適フィードバックゲイン、Q/Rトレードオフ</p>
+                <div class="lecture-links">
+                    <a href="lecture_12/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_12/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+            <div class="lecture-card">
+                <span class="part-label part-3">設計</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第13回</span>
+                    <span class="lecture-title">リッカチ方程式と最適性</span>
+                </div>
+                <p class="lecture-desc">代数リッカチ方程式、微分リッカチ方程式、ハミルトン行列</p>
+                <div class="lecture-links">
+                    <a href="lecture_13/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_13/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Part 4: 応用 -->
+        <h2 class="section-title">Part 4: 応用と統合</h2>
+        <div class="lecture-grid">
+            <div class="lecture-card">
+                <span class="part-label part-4">応用</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第14回</span>
+                    <span class="lecture-title">カルマンフィルタ</span>
+                </div>
+                <p class="lecture-desc">確率的状態推定、カルマンゲイン、LQRとの双対性</p>
+                <div class="lecture-links">
+                    <a href="lecture_14/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_14/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+            <div class="lecture-card">
+                <span class="part-label part-4">応用</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第15回</span>
+                    <span class="lecture-title">サーボシステム</span>
+                </div>
+                <p class="lecture-desc">目標値追従、内部モデル原理、積分型サーボ系</p>
+                <div class="lecture-links">
+                    <a href="lecture_15/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_15/interactive.html" class="link-btn link-interactive">🎮 演習</a>
+                </div>
+            </div>
+            <div class="lecture-card">
+                <span class="part-label part-4">応用</span>
+                <div class="lecture-header">
+                    <span class="lecture-num">第16回</span>
+                    <span class="lecture-title">まとめ</span>
+                </div>
+                <p class="lecture-desc">状態空間法の体系、概念の相互関係、設計フローチャート</p>
+                <div class="lecture-links">
+                    <a href="lecture_16/notes.md" class="link-btn link-notes">📝 ノート</a>
+                    <a href="lecture_16/interactive.html" class="link-btn link-interactive">🎮 総合演習</a>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>制御工学講義教材 | State-Space Control Theory Course Materials</p>
+        </footer>
+    </div>
+</body>
+</html>

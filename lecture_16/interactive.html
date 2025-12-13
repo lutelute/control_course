@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第16回：まとめ - 制御工学総合ダッシュボード</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #0d1117; --card: #161b22; --accent: #58a6ff; --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #a371f7; --text: #c9d1d9; --dim: #8b949e; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .container { max-width: 1500px; margin: 0 auto; padding: 1.5rem; }
+        header { text-align: center; padding: 2rem 0; background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); border-radius: 16px; margin-bottom: 1.5rem; }
+        h1 { font-size: 2.2rem; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+        .card { background: var(--card); border-radius: 12px; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.1); }
+        .card-wide { grid-column: span 2; }
+        .card-full { grid-column: 1 / -1; }
+        .card-title { color: var(--accent); margin-bottom: 1rem; font-size: 1.1rem; }
+        canvas { width: 100%; height: 250px; border-radius: 8px; background: rgba(0,0,0,0.3); }
+        .btn { padding: 0.5rem 1rem; background: var(--accent); border: none; border-radius: 6px; color: #0d1117; font-weight: 500; cursor: pointer; margin: 0.2rem; font-size: 0.85rem; }
+        .btn:hover { opacity: 0.9; }
+        .btn.active { background: var(--green); }
+        .slider-group { margin: 0.6rem 0; }
+        .slider-group label { display: flex; justify-content: space-between; color: var(--dim); font-size: 0.85rem; }
+        input[type="range"] { width: 100%; margin-top: 0.3rem; }
+        .result-box { background: rgba(88,166,255,0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 0.8rem; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; margin: 0.5rem 0; }
+        .topic-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; }
+        .topic-item { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 0.8rem; text-align: center; cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
+        .topic-item:hover { background: rgba(88,166,255,0.15); }
+        .topic-item.active { border-color: var(--accent); background: rgba(88,166,255,0.2); }
+        .topic-num { font-size: 0.75rem; color: var(--dim); }
+        .topic-name { font-size: 0.85rem; margin-top: 0.3rem; }
+        .legend { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.8rem; }
+        .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+        .legend-dot { width: 12px; height: 3px; border-radius: 2px; }
+        .info-box { background: rgba(63,185,80,0.1); border-left: 3px solid var(--green); padding: 0.75rem; font-size: 0.85rem; margin: 0.5rem 0; }
+        .formula { background: rgba(0,0,0,0.4); padding: 0.6rem; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; text-align: center; margin: 0.5rem 0; }
+        @media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, 1fr); } .card-wide { grid-column: span 1; } .topic-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } .card-wide { grid-column: span 1; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>制御工学 総合ダッシュボード</h1>
+            <p style="color: var(--dim); margin-top: 0.5rem;">State-Space Control Theory - Interactive Summary</p>
+        </header>
+        
+        <div class="grid">
+            <!-- トピック選択 -->
+            <div class="card card-full">
+                <h3 class="card-title">📚 講義トピック一覧</h3>
+                <div class="topic-grid">
+                    <div class="topic-item active" onclick="selectTopic(1)"><div class="topic-num">第1回</div><div class="topic-name">状態空間表現</div></div>
+                    <div class="topic-item" onclick="selectTopic(2)"><div class="topic-num">第2回</div><div class="topic-name">PID制御</div></div>
+                    <div class="topic-item" onclick="selectTopic(3)"><div class="topic-num">第3回</div><div class="topic-name">状態方程式の解</div></div>
+                    <div class="topic-item" onclick="selectTopic(4)"><div class="topic-num">第4回</div><div class="topic-name">遷移行列</div></div>
+                    <div class="topic-item" onclick="selectTopic(5)"><div class="topic-num">第5回</div><div class="topic-name">伝達関数</div></div>
+                    <div class="topic-item" onclick="selectTopic(6)"><div class="topic-num">第6回</div><div class="topic-name">安定性と極</div></div>
+                    <div class="topic-item" onclick="selectTopic(7)"><div class="topic-num">第7回</div><div class="topic-name">リアプノフ</div></div>
+                    <div class="topic-item" onclick="selectTopic(8)"><div class="topic-num">第8回</div><div class="topic-name">可制御性</div></div>
+                    <div class="topic-item" onclick="selectTopic(9)"><div class="topic-num">第9回</div><div class="topic-name">可観測性</div></div>
+                    <div class="topic-item" onclick="selectTopic(10)"><div class="topic-num">第10回</div><div class="topic-name">極配置</div></div>
+                    <div class="topic-item" onclick="selectTopic(11)"><div class="topic-num">第11回</div><div class="topic-name">オブザーバ</div></div>
+                    <div class="topic-item" onclick="selectTopic(12)"><div class="topic-num">第12回</div><div class="topic-name">LQR</div></div>
+                    <div class="topic-item" onclick="selectTopic(13)"><div class="topic-num">第13回</div><div class="topic-name">リッカチ方程式</div></div>
+                    <div class="topic-item" onclick="selectTopic(14)"><div class="topic-num">第14回</div><div class="topic-name">カルマンフィルタ</div></div>
+                    <div class="topic-item" onclick="selectTopic(15)"><div class="topic-num">第15回</div><div class="topic-name">サーボ系</div></div>
+                    <div class="topic-item" onclick="selectTopic(16)"><div class="topic-num">第16回</div><div class="topic-name">まとめ</div></div>
+                </div>
+            </div>
+            
+            <!-- 統合シミュレーション -->
+            <div class="card card-wide">
+                <h3 class="card-title">🎮 統合シミュレーション</h3>
+                <canvas id="mainCanvas" style="height: 280px;"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--accent);"></div>状態 x₁</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--green);"></div>状態 x₂</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--yellow);"></div>参照/推定</div>
+                </div>
+            </div>
+            
+            <!-- パラメータ設定 -->
+            <div class="card">
+                <h3 class="card-title">⚙️ システムパラメータ</h3>
+                <div class="slider-group">
+                    <label>減衰比 ζ: <span id="zetaVal">0.5</span></label>
+                    <input type="range" id="zeta" min="0.1" max="2" step="0.1" value="0.5">
+                </div>
+                <div class="slider-group">
+                    <label>固有振動数 ωn: <span id="wnVal">2.0</span></label>
+                    <input type="range" id="wn" min="0.5" max="5" step="0.1" value="2">
+                </div>
+                <div class="slider-group">
+                    <label>ゲイン K: <span id="gainVal">1.0</span></label>
+                    <input type="range" id="gain" min="0.1" max="5" step="0.1" value="1">
+                </div>
+                <button class="btn" onclick="runSimulation()">シミュレーション実行</button>
+            </div>
+            
+            <!-- 極配置図 -->
+            <div class="card">
+                <h3 class="card-title">📍 極配置（s平面）</h3>
+                <canvas id="poleCanvas"></canvas>
+            </div>
+            
+            <!-- 重要公式 -->
+            <div class="card">
+                <h3 class="card-title" id="formulaTitle">📐 重要公式</h3>
+                <div id="formulaContent">
+                    <div class="formula">ẋ = Ax + Bu</div>
+                    <div class="formula">y = Cx + Du</div>
+                    <div class="info-box" id="formulaDesc">
+                        状態空間表現は、システムの内部状態を明示的に扱う現代制御の基本形式です。
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 概念マップ -->
+            <div class="card">
+                <h3 class="card-title">🗺️ 概念の関係</h3>
+                <canvas id="mapCanvas"></canvas>
+            </div>
+            
+            <!-- システム特性 -->
+            <div class="card card-full">
+                <h3 class="card-title">📊 システム特性サマリー</h3>
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem;">
+                    <div class="result-box">
+                        <strong>安定性</strong><br>
+                        <span id="stability" style="color: var(--green);">✓ 安定</span><br>
+                        <span style="font-size: 0.75rem;">Re(λ) < 0</span>
+                    </div>
+                    <div class="result-box">
+                        <strong>可制御性</strong><br>
+                        <span id="controllability" style="color: var(--green);">✓ 可制御</span><br>
+                        <span style="font-size: 0.75rem;">rank(C) = n</span>
+                    </div>
+                    <div class="result-box">
+                        <strong>可観測性</strong><br>
+                        <span id="observability" style="color: var(--green);">✓ 可観測</span><br>
+                        <span style="font-size: 0.75rem;">rank(O) = n</span>
+                    </div>
+                    <div class="result-box">
+                        <strong>極</strong><br>
+                        <span id="poles">-1 ± 1.73j</span><br>
+                        <span style="font-size: 0.75rem;">固有値</span>
+                    </div>
+                    <div class="result-box">
+                        <strong>整定時間</strong><br>
+                        <span id="settlingTime">4.0 s</span><br>
+                        <span style="font-size: 0.75rem;">≈ 4/ζωn</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentTopic = 1;
+        let zeta = 0.5, wn = 2, gain = 1;
+        
+        const mainCanvas = document.getElementById('mainCanvas');
+        const mainCtx = mainCanvas.getContext('2d');
+        const poleCanvas = document.getElementById('poleCanvas');
+        const poleCtx = poleCanvas.getContext('2d');
+        const mapCanvas = document.getElementById('mapCanvas');
+        const mapCtx = mapCanvas.getContext('2d');
+        
+        const topicData = {
+            1: { title: '状態空間表現', formulas: ['ẋ = Ax + Bu', 'y = Cx + Du'], desc: '状態空間表現は、システムの内部状態を明示的に扱う現代制御の基本形式です。' },
+            2: { title: 'PID制御', formulas: ['u = Kp·e + Ki·∫e + Kd·ė'], desc: '比例・積分・微分の3要素で構成される古典的かつ実用的な制御手法です。' },
+            3: { title: '状態方程式の解', formulas: ['x(t) = eᴬᵗx₀ + ∫eᴬ⁽ᵗ⁻τ⁾Bu(τ)dτ'], desc: '初期状態と入力から状態の時間発展を求める基本解です。' },
+            4: { title: '遷移行列', formulas: ['Φ(t) = eᴬᵗ = L⁻¹{(sI-A)⁻¹}'], desc: '状態遷移を記述する行列。ラプラス変換や対角化で計算します。' },
+            5: { title: '伝達関数', formulas: ['G(s) = C(sI-A)⁻¹B + D'], desc: '状態空間表現から伝達関数への変換公式です。極と固有値が一致します。' },
+            6: { title: '安定性と極', formulas: ['Re(λᵢ) < 0 ⟺ 漸近安定'], desc: 'すべての固有値の実部が負であれば、システムは漸近安定です。' },
+            7: { title: 'リアプノフ方程式', formulas: ['AᵀP + PA = -Q'], desc: 'リアプノフ関数 V(x)=xᵀPx が減少すれば安定性が証明されます。' },
+            8: { title: '可制御性', formulas: ['C = [B | AB | A²B | ...]', 'rank(C) = n ⟺ 可制御'], desc: '任意の状態へ到達可能かどうかを判定します。極配置の前提条件です。' },
+            9: { title: '可観測性', formulas: ['O = [C; CA; CA²; ...]ᵀ', 'rank(O) = n ⟺ 可観測'], desc: '出力から状態を推定可能かどうかを判定します。オブザーバ設計の前提条件です。' },
+            10: { title: '極配置', formulas: ['u = -Kx', 'det(sI - A + BK) = 目標特性多項式'], desc: '状態フィードバックにより閉ループ極を任意の位置に配置できます。' },
+            11: { title: 'オブザーバ', formulas: ['x̂̇ = Ax̂ + Bu + L(y - Cx̂)'], desc: '測定できない状態を出力から推定する仕組みです。' },
+            12: { title: 'LQR', formulas: ['J = ∫(xᵀQx + uᵀRu)dt', 'K = R⁻¹BᵀP'], desc: '評価関数を最小化する最適なフィードバックゲインを求めます。' },
+            13: { title: 'リッカチ方程式', formulas: ['AᵀP + PA - PBR⁻¹BᵀP + Q = 0'], desc: 'LQRの最適ゲインを求めるための代数方程式です。' },
+            14: { title: 'カルマンフィルタ', formulas: ['L = PCᵀRᵥ⁻¹'], desc: 'ノイズがある環境での最適状態推定を行います。LQRと双対関係にあります。' },
+            15: { title: 'サーボ系', formulas: ['u = -Kx·x - Ki·∫(r-y)dt'], desc: '目標値追従を実現するため、積分動作を含む拡大系で設計します。' },
+            16: { title: 'まとめ', formulas: ['状態空間法の体系'], desc: '16回の講義で学んだ内容を統合的に理解しましょう。' }
+        };
+        
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        
+        function selectTopic(num) {
+            currentTopic = num;
+            document.querySelectorAll('.topic-item').forEach((item, i) => {
+                item.classList.toggle('active', i === num - 1);
+            });
+            updateFormulas();
+            runSimulation();
+        }
+        
+        function updateFormulas() {
+            const data = topicData[currentTopic];
+            document.getElementById('formulaTitle').textContent = '📐 ' + data.title;
+            let html = '';
+            data.formulas.forEach(f => {
+                html += `<div class="formula">${f}</div>`;
+            });
+            html += `<div class="info-box">${data.desc}</div>`;
+            document.getElementById('formulaContent').innerHTML = html;
+        }
+        
+        function runSimulation() {
+            zeta = parseFloat(document.getElementById('zeta').value);
+            wn = parseFloat(document.getElementById('wn').value);
+            gain = parseFloat(document.getElementById('gain').value);
+            
+            document.getElementById('zetaVal').textContent = zeta.toFixed(1);
+            document.getElementById('wnVal').textContent = wn.toFixed(1);
+            document.getElementById('gainVal').textContent = gain.toFixed(1);
+            
+            // システム行列の更新
+            const A = [[0, 1], [-wn*wn, -2*zeta*wn]];
+            const B = [0, wn*wn];
+            
+            // 極の計算
+            const disc = zeta*zeta - 1;
+            let polesStr;
+            if (disc >= 0) {
+                const p1 = -zeta*wn + wn*Math.sqrt(disc);
+                const p2 = -zeta*wn - wn*Math.sqrt(disc);
+                polesStr = `${p1.toFixed(2)}, ${p2.toFixed(2)}`;
+            } else {
+                polesStr = `${(-zeta*wn).toFixed(2)} ± ${(wn*Math.sqrt(-disc)).toFixed(2)}j`;
+            }
+            document.getElementById('poles').textContent = polesStr;
+            
+            // 安定性判定
+            const isStable = zeta > 0;
+            document.getElementById('stability').innerHTML = isStable ? 
+                '<span style="color: var(--green);">✓ 安定</span>' : 
+                '<span style="color: var(--red);">✗ 不安定</span>';
+            
+            // 整定時間
+            const ts = 4 / (zeta * wn);
+            document.getElementById('settlingTime').textContent = ts.toFixed(2) + ' s';
+            
+            drawMain(A, B);
+            drawPoles();
+            drawMap();
+        }
+        
+        function drawMain(A, B) {
+            const w = mainCanvas.getBoundingClientRect().width;
+            const h = mainCanvas.getBoundingClientRect().height;
+            mainCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            mainCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            // シミュレーション
+            const dt = 0.02;
+            const maxT = 10;
+            const data = [];
+            let x1 = 0, x2 = 0;
+            let maxX = 1;
+            
+            for (let t = 0; t <= maxT; t += dt) {
+                const r = t >= 0.5 ? 1 : 0;
+                const u = gain * (r - x1);
+                
+                data.push({ t, x1, x2, r });
+                maxX = Math.max(maxX, Math.abs(x1), Math.abs(x2));
+                
+                const dx1 = A[0][0]*x1 + A[0][1]*x2 + B[0]*u;
+                const dx2 = A[1][0]*x1 + A[1][1]*x2 + B[1]*u;
+                x1 += dx1 * dt;
+                x2 += dx2 * dt;
+            }
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (x) => margin.top + plotH/2 - (x / (maxX * 1.2)) * (plotH/2);
+            
+            // グリッド
+            mainCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            mainCtx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                mainCtx.beginPath();
+                mainCtx.moveTo(margin.left, margin.top + (plotH/4)*i);
+                mainCtx.lineTo(w - margin.right, margin.top + (plotH/4)*i);
+                mainCtx.stroke();
+            }
+            
+            // 参照
+            mainCtx.strokeStyle = 'var(--yellow)';
+            mainCtx.lineWidth = 1;
+            mainCtx.setLineDash([5, 5]);
+            mainCtx.beginPath();
+            data.forEach((d, i) => {
+                if (i === 0) mainCtx.moveTo(toX(d.t), toY(d.r));
+                else mainCtx.lineTo(toX(d.t), toY(d.r));
+            });
+            mainCtx.stroke();
+            mainCtx.setLineDash([]);
+            
+            // x1
+            mainCtx.strokeStyle = 'var(--accent)';
+            mainCtx.lineWidth = 2;
+            mainCtx.beginPath();
+            data.forEach((d, i) => {
+                if (i === 0) mainCtx.moveTo(toX(d.t), toY(d.x1));
+                else mainCtx.lineTo(toX(d.t), toY(d.x1));
+            });
+            mainCtx.stroke();
+            
+            // x2
+            mainCtx.strokeStyle = 'var(--green)';
+            mainCtx.beginPath();
+            data.forEach((d, i) => {
+                if (i === 0) mainCtx.moveTo(toX(d.t), toY(d.x2));
+                else mainCtx.lineTo(toX(d.t), toY(d.x2));
+            });
+            mainCtx.stroke();
+        }
+        
+        function drawPoles() {
+            const w = poleCanvas.getBoundingClientRect().width;
+            const h = poleCanvas.getBoundingClientRect().height;
+            poleCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            poleCtx.fillRect(0, 0, w, h);
+            
+            const cx = w * 0.6, cy = h / 2;
+            const scale = Math.min(w, h) / 8;
+            
+            // 安定領域
+            poleCtx.fillStyle = 'rgba(63, 185, 80, 0.1)';
+            poleCtx.fillRect(0, 0, cx, h);
+            
+            // 軸
+            poleCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            poleCtx.lineWidth = 1;
+            poleCtx.beginPath();
+            poleCtx.moveTo(0, cy);
+            poleCtx.lineTo(w, cy);
+            poleCtx.moveTo(cx, 0);
+            poleCtx.lineTo(cx, h);
+            poleCtx.stroke();
+            
+            // 極の計算と描画
+            const disc = zeta*zeta - 1;
+            poleCtx.fillStyle = 'var(--accent)';
+            
+            if (disc >= 0) {
+                const p1 = -zeta*wn + wn*Math.sqrt(disc);
+                const p2 = -zeta*wn - wn*Math.sqrt(disc);
+                [[p1, 0], [p2, 0]].forEach(([re, im]) => {
+                    poleCtx.beginPath();
+                    poleCtx.arc(cx + re * scale, cy - im * scale, 6, 0, Math.PI * 2);
+                    poleCtx.fill();
+                });
+            } else {
+                const re = -zeta * wn;
+                const im = wn * Math.sqrt(-disc);
+                [[re, im], [re, -im]].forEach(([r, i]) => {
+                    poleCtx.beginPath();
+                    poleCtx.arc(cx + r * scale, cy - i * scale, 6, 0, Math.PI * 2);
+                    poleCtx.fill();
+                });
+            }
+            
+            poleCtx.fillStyle = 'var(--dim)';
+            poleCtx.font = '10px JetBrains Mono';
+            poleCtx.fillText('Re', w - 20, cy - 5);
+            poleCtx.fillText('Im', cx + 5, 15);
+        }
+        
+        function drawMap() {
+            const w = mapCanvas.getBoundingClientRect().width;
+            const h = mapCanvas.getBoundingClientRect().height;
+            mapCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            mapCtx.fillRect(0, 0, w, h);
+            
+            const nodes = [
+                { x: w*0.5, y: 30, label: '状態空間', color: 'var(--accent)' },
+                { x: w*0.2, y: 90, label: '可制御性', color: 'var(--green)' },
+                { x: w*0.8, y: 90, label: '可観測性', color: 'var(--green)' },
+                { x: w*0.2, y: 150, label: '極配置', color: 'var(--yellow)' },
+                { x: w*0.8, y: 150, label: 'オブザーバ', color: 'var(--yellow)' },
+                { x: w*0.35, y: 210, label: 'LQR', color: 'var(--purple)' },
+                { x: w*0.65, y: 210, label: 'カルマン', color: 'var(--purple)' }
+            ];
+            
+            const edges = [
+                [0, 1], [0, 2], [1, 3], [2, 4], [3, 5], [4, 6], [5, 6]
+            ];
+            
+            // エッジ
+            mapCtx.strokeStyle = 'rgba(255,255,255,0.2)';
+            mapCtx.lineWidth = 1;
+            edges.forEach(([i, j]) => {
+                mapCtx.beginPath();
+                mapCtx.moveTo(nodes[i].x, nodes[i].y);
+                mapCtx.lineTo(nodes[j].x, nodes[j].y);
+                mapCtx.stroke();
+            });
+            
+            // ノード
+            nodes.forEach(n => {
+                mapCtx.fillStyle = n.color;
+                mapCtx.beginPath();
+                mapCtx.arc(n.x, n.y, 5, 0, Math.PI * 2);
+                mapCtx.fill();
+                
+                mapCtx.fillStyle = 'var(--text)';
+                mapCtx.font = '11px Noto Sans JP';
+                mapCtx.textAlign = 'center';
+                mapCtx.fillText(n.label, n.x, n.y + 20);
+            });
+            
+            // 双対矢印
+            mapCtx.strokeStyle = 'var(--purple)';
+            mapCtx.lineWidth = 2;
+            mapCtx.setLineDash([3, 3]);
+            mapCtx.beginPath();
+            mapCtx.moveTo(w*0.4, 210);
+            mapCtx.lineTo(w*0.6, 210);
+            mapCtx.stroke();
+            mapCtx.setLineDash([]);
+            
+            mapCtx.fillStyle = 'var(--dim)';
+            mapCtx.font = '9px JetBrains Mono';
+            mapCtx.fillText('双対', w*0.5, 225);
+        }
+        
+        ['zeta', 'wn', 'gain'].forEach(id => {
+            document.getElementById(id).addEventListener('input', runSimulation);
+        });
+        
+        window.addEventListener('load', () => {
+            setupCanvas(mainCanvas, mainCtx);
+            setupCanvas(poleCanvas, poleCtx);
+            setupCanvas(mapCanvas, mapCtx);
+            updateFormulas();
+            runSimulation();
+        });
+        window.addEventListener('resize', () => {
+            setupCanvas(mainCanvas, mainCtx);
+            setupCanvas(poleCanvas, poleCtx);
+            setupCanvas(mapCanvas, mapCtx);
+            runSimulation();
+        });
+    </script>
+</body>
+</html>

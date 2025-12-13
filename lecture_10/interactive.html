@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第10回：状態フィードバックと極配置</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #18181b; --card: #27272a; --accent: #a78bfa; --green: #4ade80; --red: #f87171; --blue: #60a5fa; --text: #fafafa; --dim: #a1a1aa; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        header { text-align: center; padding: 2rem 0; }
+        h1 { font-size: 2rem; color: var(--accent); }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .card { background: var(--card); border-radius: 12px; padding: 1.5rem; }
+        .card-full { grid-column: 1 / -1; }
+        .card-title { color: var(--accent); margin-bottom: 1rem; }
+        canvas { width: 100%; height: 300px; border-radius: 8px; background: rgba(0,0,0,0.3); }
+        .slider-group { margin: 0.5rem 0; }
+        .slider-group label { display: flex; justify-content: space-between; color: var(--dim); font-size: 0.9rem; margin-bottom: 0.3rem; }
+        input[type="range"] { width: 100%; }
+        .btn { padding: 0.5rem 1rem; background: var(--accent); border: none; border-radius: 6px; color: var(--bg); cursor: pointer; margin: 0.2rem; font-weight: 500; }
+        .btn:hover { opacity: 0.9; }
+        .result-box { background: rgba(167,139,250,0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; margin: 0.5rem 0; }
+        .info { background: rgba(96,165,250,0.1); border-left: 3px solid var(--blue); padding: 0.75rem; margin: 0.5rem 0; font-size: 0.9rem; }
+        .legend { display: flex; gap: 1rem; margin-top: 0.5rem; font-size: 0.85rem; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+        .legend-dot { width: 12px; height: 3px; border-radius: 2px; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第10回：状態フィードバックと極配置</h1>
+            <p style="color: var(--dim);">State Feedback and Pole Placement</p>
+        </header>
+        
+        <div class="grid">
+            <div class="card">
+                <h3 class="card-title">🎯 目標極の設定</h3>
+                <div class="slider-group">
+                    <label>実部 σ: <span id="sigmaVal">-2.0</span></label>
+                    <input type="range" id="sigmaSlider" min="-5" max="0" step="0.1" value="-2">
+                </div>
+                <div class="slider-group">
+                    <label>虚部 ω: <span id="omegaVal">2.0</span></label>
+                    <input type="range" id="omegaSlider" min="0" max="5" step="0.1" value="2">
+                </div>
+                <div class="result-box">
+                    <div>目標極: <span id="targetPoles">s = -2 ± 2j</span></div>
+                    <div>減衰比 ζ: <span id="zetaVal">0.707</span></div>
+                    <div>固有角周波数 ωn: <span id="wnVal">2.83</span> rad/s</div>
+                </div>
+                <div class="info">
+                    整定時間(2%) ≈ <span id="settlingTime">2.0</span> s<br>
+                    オーバーシュート ≈ <span id="overshoot">4.3</span> %
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🔧 フィードバックゲイン K</h3>
+                <div class="info">
+                    システム: ẋ = Ax + Bu<br>
+                    A = [0, 1; 0, 0], B = [0; 1]<br>
+                    制御則: u = -Kx
+                </div>
+                <div class="result-box" id="gainResult">
+                    K = [ 8.00  4.00 ]
+                </div>
+                <div class="result-box">
+                    閉ループ行列 A - BK:<br>
+                    <span id="closedLoopMatrix">[ 0  1 ]<br>[-8 -4 ]</span>
+                </div>
+                <button class="btn" onclick="applyGain()">ゲインを適用</button>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📊 極配置図</h3>
+                <canvas id="poleCanvas"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><span style="color: var(--red);">×</span> 開ループ極</div>
+                    <div class="legend-item"><span style="color: var(--green);">×</span> 閉ループ極</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📈 ステップ応答</h3>
+                <canvas id="stepCanvas"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--red);"></div>開ループ</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--green);"></div>閉ループ</div>
+                </div>
+            </div>
+            
+            <div class="card card-full">
+                <h3 class="card-title">🎮 状態軌道（位相平面）</h3>
+                <canvas id="phaseCanvas" style="height: 350px;"></canvas>
+                <p style="font-size: 0.85rem; color: var(--dim); margin-top: 0.5rem;">
+                    状態フィードバックにより軌道が原点へ収束
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // システム: 二重積分器
+        const A = [[0, 1], [0, 0]];
+        const B = [0, 1];
+        let K = [8, 4];
+        let targetSigma = -2;
+        let targetOmega = 2;
+        
+        const poleCanvas = document.getElementById('poleCanvas');
+        const poleCtx = poleCanvas.getContext('2d');
+        const stepCanvas = document.getElementById('stepCanvas');
+        const stepCtx = stepCanvas.getContext('2d');
+        const phaseCanvas = document.getElementById('phaseCanvas');
+        const phaseCtx = phaseCanvas.getContext('2d');
+        
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        
+        function initCanvases() {
+            setupCanvas(poleCanvas, poleCtx);
+            setupCanvas(stepCanvas, stepCtx);
+            setupCanvas(phaseCanvas, phaseCtx);
+        }
+        
+        function updateDesign() {
+            targetSigma = parseFloat(document.getElementById('sigmaSlider').value);
+            targetOmega = parseFloat(document.getElementById('omegaSlider').value);
+            
+            document.getElementById('sigmaVal').textContent = targetSigma.toFixed(1);
+            document.getElementById('omegaVal').textContent = targetOmega.toFixed(1);
+            
+            // 目標極
+            if (targetOmega > 0) {
+                document.getElementById('targetPoles').textContent = `s = ${targetSigma.toFixed(1)} ± ${targetOmega.toFixed(1)}j`;
+            } else {
+                document.getElementById('targetPoles').textContent = `s = ${targetSigma.toFixed(1)} (重根)`;
+            }
+            
+            // 減衰比と固有周波数
+            const wn = Math.sqrt(targetSigma*targetSigma + targetOmega*targetOmega);
+            const zeta = -targetSigma / wn;
+            document.getElementById('zetaVal').textContent = zeta.toFixed(3);
+            document.getElementById('wnVal').textContent = wn.toFixed(2);
+            
+            // 整定時間とオーバーシュート
+            const ts = 4 / Math.abs(targetSigma);
+            const os = zeta < 1 ? 100 * Math.exp(-Math.PI * zeta / Math.sqrt(1 - zeta*zeta)) : 0;
+            document.getElementById('settlingTime').textContent = ts.toFixed(2);
+            document.getElementById('overshoot').textContent = os.toFixed(1);
+            
+            // ゲイン計算（極配置）
+            // 目標特性方程式: s² + 2ζωn s + ωn² = s² + k2 s + k1
+            const k1 = wn * wn;
+            const k2 = 2 * zeta * wn;
+            K = [k1, k2];
+            
+            document.getElementById('gainResult').innerHTML = `K = [ ${k1.toFixed(2)}  ${k2.toFixed(2)} ]`;
+            document.getElementById('closedLoopMatrix').innerHTML = 
+                `[  0    1  ]<br>[${(-k1).toFixed(1).padStart(4)}  ${(-k2).toFixed(1).padStart(4)} ]`;
+            
+            drawAll();
+        }
+        
+        function applyGain() {
+            drawAll();
+        }
+        
+        function drawPoles() {
+            const w = poleCanvas.getBoundingClientRect().width;
+            const h = poleCanvas.getBoundingClientRect().height;
+            poleCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            poleCtx.fillRect(0, 0, w, h);
+            
+            const cx = w * 0.6, cy = h / 2;
+            const scale = Math.min(w, h) / 12;
+            
+            // 安定領域
+            poleCtx.fillStyle = 'rgba(74, 222, 128, 0.1)';
+            poleCtx.fillRect(0, 0, cx, h);
+            
+            // グリッド
+            poleCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            poleCtx.lineWidth = 1;
+            for (let i = -5; i <= 2; i++) {
+                const x = cx + i * scale;
+                poleCtx.beginPath();
+                poleCtx.moveTo(x, 0);
+                poleCtx.lineTo(x, h);
+                poleCtx.stroke();
+            }
+            for (let i = -3; i <= 3; i++) {
+                const y = cy + i * scale;
+                poleCtx.beginPath();
+                poleCtx.moveTo(0, y);
+                poleCtx.lineTo(w, y);
+                poleCtx.stroke();
+            }
+            
+            // 軸
+            poleCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+            poleCtx.lineWidth = 2;
+            poleCtx.beginPath();
+            poleCtx.moveTo(0, cy);
+            poleCtx.lineTo(w, cy);
+            poleCtx.moveTo(cx, 0);
+            poleCtx.lineTo(cx, h);
+            poleCtx.stroke();
+            
+            // 開ループ極（原点に二重極）
+            poleCtx.strokeStyle = 'var(--red)';
+            poleCtx.lineWidth = 3;
+            const size = 10;
+            poleCtx.beginPath();
+            poleCtx.moveTo(cx - size, cy - size);
+            poleCtx.lineTo(cx + size, cy + size);
+            poleCtx.moveTo(cx + size, cy - size);
+            poleCtx.lineTo(cx - size, cy + size);
+            poleCtx.stroke();
+            
+            // 閉ループ極
+            poleCtx.strokeStyle = 'var(--green)';
+            const px1 = cx + targetSigma * scale;
+            const py1 = cy - targetOmega * scale;
+            const py2 = cy + targetOmega * scale;
+            
+            poleCtx.beginPath();
+            poleCtx.moveTo(px1 - size, py1 - size);
+            poleCtx.lineTo(px1 + size, py1 + size);
+            poleCtx.moveTo(px1 + size, py1 - size);
+            poleCtx.lineTo(px1 - size, py1 + size);
+            poleCtx.stroke();
+            
+            if (targetOmega > 0) {
+                poleCtx.beginPath();
+                poleCtx.moveTo(px1 - size, py2 - size);
+                poleCtx.lineTo(px1 + size, py2 + size);
+                poleCtx.moveTo(px1 + size, py2 - size);
+                poleCtx.lineTo(px1 - size, py2 + size);
+                poleCtx.stroke();
+            }
+            
+            // ラベル
+            poleCtx.fillStyle = 'var(--dim)';
+            poleCtx.font = '11px JetBrains Mono';
+            poleCtx.fillText('Re', w - 25, cy - 10);
+            poleCtx.fillText('Im', cx + 10, 20);
+        }
+        
+        function drawStep() {
+            const w = stepCanvas.getBoundingClientRect().width;
+            const h = stepCanvas.getBoundingClientRect().height;
+            stepCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            stepCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            const dt = 0.01;
+            const maxT = 6;
+            
+            // 閉ループ応答（数値積分）
+            const closedData = [];
+            let x1 = 0, x2 = 0;
+            const Acl = [[0, 1], [-K[0], -K[1]]];
+            
+            for (let t = 0; t <= maxT; t += dt) {
+                closedData.push({ t, y: x1 });
+                const r = 1; // ステップ入力
+                const u = -K[0]*x1 - K[1]*x2 + K[0]*r;
+                const dx1 = Acl[0][0]*x1 + Acl[0][1]*x2;
+                const dx2 = Acl[1][0]*x1 + Acl[1][1]*x2 + r;
+                x1 += (x2) * dt;
+                x2 += (-K[0]*(x1-r) - K[1]*x2) * dt;
+            }
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (y) => margin.top + plotH - (y / 1.5) * plotH;
+            
+            // グリッド
+            stepCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            for (let i = 0; i <= 4; i++) {
+                const y = margin.top + (plotH / 4) * i;
+                stepCtx.beginPath();
+                stepCtx.moveTo(margin.left, y);
+                stepCtx.lineTo(w - margin.right, y);
+                stepCtx.stroke();
+            }
+            
+            // 目標値
+            stepCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            stepCtx.setLineDash([5, 5]);
+            stepCtx.beginPath();
+            stepCtx.moveTo(margin.left, toY(1));
+            stepCtx.lineTo(w - margin.right, toY(1));
+            stepCtx.stroke();
+            stepCtx.setLineDash([]);
+            
+            // 閉ループ応答
+            stepCtx.strokeStyle = 'var(--green)';
+            stepCtx.lineWidth = 2;
+            stepCtx.beginPath();
+            closedData.forEach((p, i) => {
+                const y = Math.max(margin.top, Math.min(h - margin.bottom, toY(p.y)));
+                if (i === 0) stepCtx.moveTo(toX(p.t), y);
+                else stepCtx.lineTo(toX(p.t), y);
+            });
+            stepCtx.stroke();
+            
+            // ラベル
+            stepCtx.fillStyle = 'var(--dim)';
+            stepCtx.font = '11px JetBrains Mono';
+            stepCtx.fillText('t [s]', w - 30, h - 10);
+            stepCtx.fillText('y(t)', margin.left, margin.top - 5);
+        }
+        
+        function drawPhase() {
+            const w = phaseCanvas.getBoundingClientRect().width;
+            const h = phaseCanvas.getBoundingClientRect().height;
+            phaseCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            phaseCtx.fillRect(0, 0, w, h);
+            
+            const cx = w / 2, cy = h / 2;
+            const scale = Math.min(w, h) / 6;
+            
+            // グリッド
+            phaseCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            for (let i = -3; i <= 3; i++) {
+                phaseCtx.beginPath();
+                phaseCtx.moveTo(cx + i * scale, 0);
+                phaseCtx.lineTo(cx + i * scale, h);
+                phaseCtx.stroke();
+                phaseCtx.beginPath();
+                phaseCtx.moveTo(0, cy + i * scale);
+                phaseCtx.lineTo(w, cy + i * scale);
+                phaseCtx.stroke();
+            }
+            
+            // 軸
+            phaseCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+            phaseCtx.lineWidth = 2;
+            phaseCtx.beginPath();
+            phaseCtx.moveTo(0, cy);
+            phaseCtx.lineTo(w, cy);
+            phaseCtx.moveTo(cx, 0);
+            phaseCtx.lineTo(cx, h);
+            phaseCtx.stroke();
+            
+            // 複数の初期条件からの軌道
+            const initials = [[2, 1], [-2, 1], [2, -1], [-2, -1], [1, 2], [-1, -2]];
+            
+            initials.forEach((init, idx) => {
+                const dt = 0.02;
+                let x1 = init[0], x2 = init[1];
+                
+                phaseCtx.strokeStyle = `hsl(${idx * 60 + 120}, 70%, 60%)`;
+                phaseCtx.lineWidth = 1.5;
+                phaseCtx.beginPath();
+                phaseCtx.moveTo(cx + x1 * scale, cy - x2 * scale);
+                
+                for (let t = 0; t < 10; t += dt) {
+                    const dx1 = x2;
+                    const dx2 = -K[0]*x1 - K[1]*x2;
+                    x1 += dx1 * dt;
+                    x2 += dx2 * dt;
+                    
+                    if (Math.abs(x1) > 4 || Math.abs(x2) > 4) break;
+                    phaseCtx.lineTo(cx + x1 * scale, cy - x2 * scale);
+                }
+                phaseCtx.stroke();
+                
+                // 初期点
+                phaseCtx.fillStyle = `hsl(${idx * 60 + 120}, 70%, 60%)`;
+                phaseCtx.beginPath();
+                phaseCtx.arc(cx + init[0] * scale, cy - init[1] * scale, 4, 0, Math.PI * 2);
+                phaseCtx.fill();
+            });
+            
+            // 原点
+            phaseCtx.fillStyle = 'var(--accent)';
+            phaseCtx.beginPath();
+            phaseCtx.arc(cx, cy, 6, 0, Math.PI * 2);
+            phaseCtx.fill();
+            
+            // ラベル
+            phaseCtx.fillStyle = 'var(--dim)';
+            phaseCtx.font = '12px JetBrains Mono';
+            phaseCtx.fillText('x₁', w - 25, cy - 10);
+            phaseCtx.fillText('x₂', cx + 10, 20);
+        }
+        
+        function drawAll() {
+            drawPoles();
+            drawStep();
+            drawPhase();
+        }
+        
+        document.getElementById('sigmaSlider').addEventListener('input', updateDesign);
+        document.getElementById('omegaSlider').addEventListener('input', updateDesign);
+        
+        window.addEventListener('load', () => {
+            initCanvases();
+            updateDesign();
+        });
+        window.addEventListener('resize', () => { initCanvases(); drawAll(); });
+    </script>
+</body>
+</html>

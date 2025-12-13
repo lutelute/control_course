@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第6回：安定性と極</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --stable: #22c55e;
+            --unstable: #ef4444;
+            --marginal: #eab308;
+            --accent: #3b82f6;
+            --text: #e2e8f0;
+            --dim: #64748b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        header { text-align: center; padding: 2rem 0; }
+        h1 { font-size: 2rem; color: var(--accent); }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .card { background: var(--card); border-radius: 12px; padding: 1.5rem; }
+        .card-full { grid-column: 1 / -1; }
+        .card-title { color: var(--accent); margin-bottom: 1rem; }
+        canvas { width: 100%; height: 300px; border-radius: 8px; background: rgba(0,0,0,0.3); cursor: crosshair; }
+        .pole-canvas { aspect-ratio: 1; height: auto; }
+        .status-box { padding: 1rem; border-radius: 8px; text-align: center; font-size: 1.2rem; font-weight: 500; margin: 1rem 0; }
+        .stable { background: rgba(34, 197, 94, 0.2); border: 2px solid var(--stable); color: var(--stable); }
+        .unstable { background: rgba(239, 68, 68, 0.2); border: 2px solid var(--unstable); color: var(--unstable); }
+        .marginal { background: rgba(234, 179, 8, 0.2); border: 2px solid var(--marginal); color: var(--marginal); }
+        .controls { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0; }
+        .btn { padding: 0.5rem 1rem; background: var(--accent); border: none; border-radius: 6px; color: white; cursor: pointer; }
+        .btn:hover { opacity: 0.9; }
+        .info-box { background: rgba(59, 130, 246, 0.1); border-left: 3px solid var(--accent); padding: 1rem; margin: 0.5rem 0; font-size: 0.9rem; }
+        .eigenvalue-list { font-family: 'JetBrains Mono', monospace; margin: 0.5rem 0; }
+        .eigenvalue-item { display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .legend { display: flex; gap: 1rem; margin-top: 0.5rem; font-size: 0.85rem; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+        .legend-color { width: 12px; height: 12px; border-radius: 3px; }
+        .slider-group { margin: 0.5rem 0; }
+        .slider-group label { display: flex; justify-content: space-between; color: var(--dim); font-size: 0.9rem; }
+        input[type="range"] { width: 100%; margin-top: 0.3rem; }
+        .region-label { position: absolute; font-size: 0.8rem; color: var(--dim); }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第6回：安定性と極</h1>
+            <p style="color: var(--dim);">Stability and Pole Placement</p>
+        </header>
+        
+        <div class="grid">
+            <!-- 極配置 -->
+            <div class="card">
+                <h3 class="card-title">🎯 極配置（クリックで極を追加）</h3>
+                <canvas id="poleCanvas" class="pole-canvas"></canvas>
+                <div class="controls">
+                    <button class="btn" onclick="clearPoles()">クリア</button>
+                    <button class="btn" onclick="addRandomPoles()">ランダム追加</button>
+                    <button class="btn" onclick="addStablePoles()">安定な極</button>
+                    <button class="btn" onclick="addUnstablePole()">不安定な極</button>
+                </div>
+                <div id="stabilityStatus" class="status-box stable">システムは安定</div>
+            </div>
+            
+            <!-- 時間応答 -->
+            <div class="card">
+                <h3 class="card-title">📈 時間応答（自由応答）</h3>
+                <canvas id="responseCanvas"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color" style="background: var(--accent);"></div>x(t)</div>
+                    <div class="legend-item"><div class="legend-color" style="background: var(--stable);"></div>包絡線</div>
+                </div>
+            </div>
+            
+            <!-- 固有値リスト -->
+            <div class="card">
+                <h3 class="card-title">📋 固有値（極）のリスト</h3>
+                <div id="eigenvalueList" class="eigenvalue-list">
+                    <p style="color: var(--dim);">極をクリックして追加してください</p>
+                </div>
+                <div class="info-box">
+                    <strong>安定条件:</strong> すべての極の実部が負
+                    <br>Re(λᵢ) < 0 for all i
+                </div>
+            </div>
+            
+            <!-- 応答特性 -->
+            <div class="card">
+                <h3 class="card-title">⚙️ 応答特性</h3>
+                <div class="eigenvalue-list">
+                    <div class="eigenvalue-item">
+                        <span>支配極:</span>
+                        <span id="dominantPole">-</span>
+                    </div>
+                    <div class="eigenvalue-item">
+                        <span>推定整定時間:</span>
+                        <span id="settlingTime">-</span>
+                    </div>
+                    <div class="eigenvalue-item">
+                        <span>振動周波数:</span>
+                        <span id="oscillationFreq">-</span>
+                    </div>
+                    <div class="eigenvalue-item">
+                        <span>減衰比:</span>
+                        <span id="dampingRatio">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 2次系の極配置 -->
+            <div class="card card-full">
+                <h3 class="card-title">🔬 2次系の極と応答の関係</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <div class="slider-group">
+                            <label>減衰比 ζ: <span id="zetaVal">0.5</span></label>
+                            <input type="range" id="zetaSlider" min="0" max="2" step="0.05" value="0.5">
+                        </div>
+                        <div class="slider-group">
+                            <label>固有角周波数 ωn: <span id="wnVal">1.0</span> rad/s</label>
+                            <input type="range" id="wnSlider" min="0.1" max="5" step="0.1" value="1">
+                        </div>
+                        <div class="info-box" style="margin-top: 1rem;">
+                            <strong>極の位置:</strong><br>
+                            <span id="secondOrderPoles">s = -0.5 ± 0.866j</span>
+                        </div>
+                    </div>
+                    <div>
+                        <canvas id="secondOrderCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 極のリスト（複素数）
+        let poles = [];
+        
+        // キャンバス
+        const poleCanvas = document.getElementById('poleCanvas');
+        const poleCtx = poleCanvas.getContext('2d');
+        const responseCanvas = document.getElementById('responseCanvas');
+        const responseCtx = responseCanvas.getContext('2d');
+        const secondOrderCanvas = document.getElementById('secondOrderCanvas');
+        const secondOrderCtx = secondOrderCanvas.getContext('2d');
+        
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        
+        function initCanvases() {
+            setupCanvas(poleCanvas, poleCtx);
+            setupCanvas(responseCanvas, responseCtx);
+            setupCanvas(secondOrderCanvas, secondOrderCtx);
+            drawAll();
+        }
+        
+        // 極をクリックで追加
+        poleCanvas.addEventListener('click', (e) => {
+            const rect = poleCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const w = rect.width;
+            const h = rect.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const scale = Math.min(w, h) / 8;
+            
+            const re = (x - cx) / scale;
+            const im = (cy - y) / scale;
+            
+            // 複素共役ペアとして追加（虚部が0でない場合）
+            if (Math.abs(im) > 0.1) {
+                poles.push({ re, im });
+                poles.push({ re, im: -im });
+            } else {
+                poles.push({ re, im: 0 });
+            }
+            
+            drawAll();
+        });
+        
+        function clearPoles() {
+            poles = [];
+            drawAll();
+        }
+        
+        function addRandomPoles() {
+            const re = -Math.random() * 3 - 0.5;
+            const im = (Math.random() - 0.5) * 4;
+            if (Math.abs(im) > 0.2) {
+                poles.push({ re, im });
+                poles.push({ re, im: -im });
+            } else {
+                poles.push({ re, im: 0 });
+            }
+            drawAll();
+        }
+        
+        function addStablePoles() {
+            poles.push({ re: -1, im: 1 });
+            poles.push({ re: -1, im: -1 });
+            drawAll();
+        }
+        
+        function addUnstablePole() {
+            poles.push({ re: 0.5, im: 0 });
+            drawAll();
+        }
+        
+        function drawPoleCanvas() {
+            const w = poleCanvas.getBoundingClientRect().width;
+            const h = poleCanvas.getBoundingClientRect().height;
+            
+            poleCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            poleCtx.fillRect(0, 0, w, h);
+            
+            const cx = w / 2;
+            const cy = h / 2;
+            const scale = Math.min(w, h) / 8;
+            
+            // 左半平面（安定領域）を薄く塗る
+            poleCtx.fillStyle = 'rgba(34, 197, 94, 0.1)';
+            poleCtx.fillRect(0, 0, cx, h);
+            
+            // 右半平面（不安定領域）
+            poleCtx.fillStyle = 'rgba(239, 68, 68, 0.1)';
+            poleCtx.fillRect(cx, 0, w - cx, h);
+            
+            // グリッド
+            poleCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            poleCtx.lineWidth = 1;
+            for (let i = -3; i <= 3; i++) {
+                poleCtx.beginPath();
+                poleCtx.moveTo(cx + i * scale, 0);
+                poleCtx.lineTo(cx + i * scale, h);
+                poleCtx.stroke();
+                poleCtx.beginPath();
+                poleCtx.moveTo(0, cy + i * scale);
+                poleCtx.lineTo(w, cy + i * scale);
+                poleCtx.stroke();
+            }
+            
+            // 軸
+            poleCtx.strokeStyle = 'rgba(255,255,255,0.5)';
+            poleCtx.lineWidth = 2;
+            poleCtx.beginPath();
+            poleCtx.moveTo(0, cy);
+            poleCtx.lineTo(w, cy);
+            poleCtx.moveTo(cx, 0);
+            poleCtx.lineTo(cx, h);
+            poleCtx.stroke();
+            
+            // 虚軸を強調
+            poleCtx.strokeStyle = 'rgba(234, 179, 8, 0.5)';
+            poleCtx.setLineDash([5, 5]);
+            poleCtx.beginPath();
+            poleCtx.moveTo(cx, 0);
+            poleCtx.lineTo(cx, h);
+            poleCtx.stroke();
+            poleCtx.setLineDash([]);
+            
+            // 極をプロット
+            poles.forEach(p => {
+                const x = cx + p.re * scale;
+                const y = cy - p.im * scale;
+                
+                const color = p.re < 0 ? 'var(--stable)' : (p.re > 0 ? 'var(--unstable)' : 'var(--marginal)');
+                poleCtx.strokeStyle = color;
+                poleCtx.lineWidth = 3;
+                poleCtx.beginPath();
+                poleCtx.moveTo(x - 8, y - 8);
+                poleCtx.lineTo(x + 8, y + 8);
+                poleCtx.moveTo(x + 8, y - 8);
+                poleCtx.lineTo(x - 8, y + 8);
+                poleCtx.stroke();
+            });
+            
+            // ラベル
+            poleCtx.fillStyle = 'rgba(255,255,255,0.6)';
+            poleCtx.font = '12px JetBrains Mono';
+            poleCtx.fillText('Re (σ)', w - 50, cy - 10);
+            poleCtx.fillText('Im (jω)', cx + 10, 20);
+            poleCtx.fillStyle = 'rgba(34, 197, 94, 0.6)';
+            poleCtx.fillText('安定', 20, 30);
+            poleCtx.fillStyle = 'rgba(239, 68, 68, 0.6)';
+            poleCtx.fillText('不安定', w - 50, 30);
+        }
+        
+        function drawResponseCanvas() {
+            const w = responseCanvas.getBoundingClientRect().width;
+            const h = responseCanvas.getBoundingClientRect().height;
+            
+            responseCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            responseCtx.fillRect(0, 0, w, h);
+            
+            if (poles.length === 0) {
+                responseCtx.fillStyle = 'var(--dim)';
+                responseCtx.font = '14px Noto Sans JP';
+                responseCtx.fillText('極を追加すると応答が表示されます', 50, h/2);
+                return;
+            }
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            // 応答計算
+            const maxT = 10;
+            const dt = 0.02;
+            const data = [];
+            let maxVal = 1;
+            
+            for (let t = 0; t <= maxT; t += dt) {
+                let response = 0;
+                const processedPairs = new Set();
+                
+                poles.forEach((p, idx) => {
+                    if (processedPairs.has(idx)) return;
+                    
+                    // 複素共役ペアを見つける
+                    const conjugateIdx = poles.findIndex((q, j) => 
+                        j !== idx && Math.abs(q.re - p.re) < 0.01 && Math.abs(q.im + p.im) < 0.01
+                    );
+                    
+                    if (conjugateIdx !== -1 && p.im !== 0) {
+                        processedPairs.add(conjugateIdx);
+                        // 複素共役ペア
+                        response += 2 * Math.exp(p.re * t) * Math.cos(p.im * t);
+                    } else if (Math.abs(p.im) < 0.01) {
+                        // 実数極
+                        response += Math.exp(p.re * t);
+                    }
+                });
+                
+                data.push({ t, y: response });
+                if (Math.abs(response) < 100) maxVal = Math.max(maxVal, Math.abs(response));
+            }
+            
+            maxVal = Math.min(maxVal, 10);
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (y) => margin.top + plotH/2 - (y / maxVal) * (plotH/2) * 0.9;
+            
+            // グリッド
+            responseCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            responseCtx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = margin.top + (plotH / 4) * i;
+                responseCtx.beginPath();
+                responseCtx.moveTo(margin.left, y);
+                responseCtx.lineTo(w - margin.right, y);
+                responseCtx.stroke();
+            }
+            
+            // ゼロライン
+            responseCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            responseCtx.beginPath();
+            responseCtx.moveTo(margin.left, toY(0));
+            responseCtx.lineTo(w - margin.right, toY(0));
+            responseCtx.stroke();
+            
+            // 応答曲線
+            responseCtx.strokeStyle = 'var(--accent)';
+            responseCtx.lineWidth = 2;
+            responseCtx.beginPath();
+            let started = false;
+            data.forEach((p, i) => {
+                if (Math.abs(p.y) > maxVal * 2) return;
+                const y = Math.max(margin.top, Math.min(h - margin.bottom, toY(p.y)));
+                if (!started) { responseCtx.moveTo(toX(p.t), y); started = true; }
+                else responseCtx.lineTo(toX(p.t), y);
+            });
+            responseCtx.stroke();
+        }
+        
+        function updateEigenvalueList() {
+            const list = document.getElementById('eigenvalueList');
+            if (poles.length === 0) {
+                list.innerHTML = '<p style="color: var(--dim);">極をクリックして追加してください</p>';
+                return;
+            }
+            
+            let html = '';
+            const shown = new Set();
+            poles.forEach((p, i) => {
+                const key = `${p.re.toFixed(2)},${Math.abs(p.im).toFixed(2)}`;
+                if (shown.has(key)) return;
+                shown.add(key);
+                
+                const color = p.re < 0 ? 'var(--stable)' : (p.re > 0 ? 'var(--unstable)' : 'var(--marginal)');
+                const status = p.re < 0 ? '安定' : (p.re > 0 ? '不安定' : '臨界');
+                
+                let poleStr = p.re.toFixed(2);
+                if (Math.abs(p.im) > 0.01) {
+                    poleStr += ` ± ${Math.abs(p.im).toFixed(2)}j`;
+                }
+                
+                html += `<div class="eigenvalue-item">
+                    <span>λ = ${poleStr}</span>
+                    <span style="color: ${color}">${status}</span>
+                </div>`;
+            });
+            list.innerHTML = html;
+        }
+        
+        function updateStabilityStatus() {
+            const status = document.getElementById('stabilityStatus');
+            const isStable = poles.every(p => p.re < 0);
+            const isMarginal = poles.some(p => Math.abs(p.re) < 0.01);
+            
+            if (poles.length === 0) {
+                status.className = 'status-box stable';
+                status.textContent = 'システムは安定（極なし）';
+            } else if (isStable && !isMarginal) {
+                status.className = 'status-box stable';
+                status.textContent = '✓ システムは漸近安定';
+            } else if (isMarginal && !poles.some(p => p.re > 0)) {
+                status.className = 'status-box marginal';
+                status.textContent = '⚠ システムは臨界安定';
+            } else {
+                status.className = 'status-box unstable';
+                status.textContent = '✗ システムは不安定';
+            }
+        }
+        
+        function updateResponseCharacteristics() {
+            if (poles.length === 0) {
+                document.getElementById('dominantPole').textContent = '-';
+                document.getElementById('settlingTime').textContent = '-';
+                document.getElementById('oscillationFreq').textContent = '-';
+                document.getElementById('dampingRatio').textContent = '-';
+                return;
+            }
+            
+            // 支配極を見つける
+            let dominant = poles[0];
+            poles.forEach(p => {
+                if (p.re > dominant.re) dominant = p;
+            });
+            
+            let domStr = dominant.re.toFixed(2);
+            if (Math.abs(dominant.im) > 0.01) domStr += ` ± ${Math.abs(dominant.im).toFixed(2)}j`;
+            document.getElementById('dominantPole').textContent = domStr;
+            
+            // 整定時間
+            if (dominant.re < 0) {
+                const ts = 4 / Math.abs(dominant.re);
+                document.getElementById('settlingTime').textContent = ts.toFixed(2) + ' s';
+            } else {
+                document.getElementById('settlingTime').textContent = '∞ (発散)';
+            }
+            
+            // 振動周波数
+            if (Math.abs(dominant.im) > 0.01) {
+                const freq = Math.abs(dominant.im) / (2 * Math.PI);
+                document.getElementById('oscillationFreq').textContent = freq.toFixed(3) + ' Hz';
+            } else {
+                document.getElementById('oscillationFreq').textContent = '0 (非振動)';
+            }
+            
+            // 減衰比
+            const wn = Math.sqrt(dominant.re * dominant.re + dominant.im * dominant.im);
+            const zeta = -dominant.re / wn;
+            document.getElementById('dampingRatio').textContent = zeta.toFixed(3);
+        }
+        
+        function drawAll() {
+            drawPoleCanvas();
+            drawResponseCanvas();
+            updateEigenvalueList();
+            updateStabilityStatus();
+            updateResponseCharacteristics();
+        }
+        
+        // 2次系のシミュレーション
+        function updateSecondOrder() {
+            const zeta = parseFloat(document.getElementById('zetaSlider').value);
+            const wn = parseFloat(document.getElementById('wnSlider').value);
+            
+            document.getElementById('zetaVal').textContent = zeta.toFixed(2);
+            document.getElementById('wnVal').textContent = wn.toFixed(1);
+            
+            // 極の計算
+            let polesStr;
+            if (zeta < 1) {
+                const sigma = -zeta * wn;
+                const omega = wn * Math.sqrt(1 - zeta * zeta);
+                polesStr = `s = ${sigma.toFixed(2)} ± ${omega.toFixed(2)}j`;
+            } else if (zeta === 1) {
+                polesStr = `s = ${(-wn).toFixed(2)} (重根)`;
+            } else {
+                const p1 = -zeta * wn + wn * Math.sqrt(zeta * zeta - 1);
+                const p2 = -zeta * wn - wn * Math.sqrt(zeta * zeta - 1);
+                polesStr = `s = ${p1.toFixed(2)}, ${p2.toFixed(2)}`;
+            }
+            document.getElementById('secondOrderPoles').textContent = polesStr;
+            
+            drawSecondOrderResponse(zeta, wn);
+        }
+        
+        function drawSecondOrderResponse(zeta, wn) {
+            const w = secondOrderCanvas.getBoundingClientRect().width;
+            const h = secondOrderCanvas.getBoundingClientRect().height;
+            
+            secondOrderCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            secondOrderCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            // ステップ応答計算
+            const maxT = 10;
+            const dt = 0.02;
+            const data = [];
+            
+            for (let t = 0; t <= maxT; t += dt) {
+                let y;
+                if (zeta < 1) {
+                    const wd = wn * Math.sqrt(1 - zeta * zeta);
+                    const phi = Math.atan2(zeta, Math.sqrt(1 - zeta * zeta));
+                    y = 1 - Math.exp(-zeta * wn * t) * Math.cos(wd * t - phi) / Math.sqrt(1 - zeta * zeta);
+                } else if (zeta === 1) {
+                    y = 1 - (1 + wn * t) * Math.exp(-wn * t);
+                } else {
+                    const s1 = -zeta * wn + wn * Math.sqrt(zeta * zeta - 1);
+                    const s2 = -zeta * wn - wn * Math.sqrt(zeta * zeta - 1);
+                    y = 1 + (s1 * Math.exp(s2 * t) - s2 * Math.exp(s1 * t)) / (s2 - s1);
+                }
+                data.push({ t, y });
+            }
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (y) => margin.top + plotH - (y / 1.6) * plotH;
+            
+            // グリッド
+            secondOrderCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            secondOrderCtx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = margin.top + (plotH / 4) * i;
+                secondOrderCtx.beginPath();
+                secondOrderCtx.moveTo(margin.left, y);
+                secondOrderCtx.lineTo(w - margin.right, y);
+                secondOrderCtx.stroke();
+            }
+            
+            // 目標値
+            secondOrderCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            secondOrderCtx.setLineDash([5, 5]);
+            secondOrderCtx.beginPath();
+            secondOrderCtx.moveTo(margin.left, toY(1));
+            secondOrderCtx.lineTo(w - margin.right, toY(1));
+            secondOrderCtx.stroke();
+            secondOrderCtx.setLineDash([]);
+            
+            // 応答曲線
+            secondOrderCtx.strokeStyle = 'var(--accent)';
+            secondOrderCtx.lineWidth = 2;
+            secondOrderCtx.beginPath();
+            data.forEach((p, i) => {
+                if (i === 0) secondOrderCtx.moveTo(toX(p.t), toY(p.y));
+                else secondOrderCtx.lineTo(toX(p.t), toY(p.y));
+            });
+            secondOrderCtx.stroke();
+            
+            // ラベル
+            secondOrderCtx.fillStyle = 'var(--dim)';
+            secondOrderCtx.font = '10px JetBrains Mono';
+            secondOrderCtx.fillText('t [s]', w - 30, h - 10);
+            secondOrderCtx.fillText('y(t)', margin.left + 5, margin.top + 15);
+        }
+        
+        document.getElementById('zetaSlider').addEventListener('input', updateSecondOrder);
+        document.getElementById('wnSlider').addEventListener('input', updateSecondOrder);
+        
+        window.addEventListener('load', () => {
+            initCanvases();
+            updateSecondOrder();
+        });
+        window.addEventListener('resize', () => { initCanvases(); updateSecondOrder(); });
+    </script>
+</body>
+</html>

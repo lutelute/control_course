@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第11回：オブザーバ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #0d1117; --card: #161b22; --accent: #58a6ff; --green: #3fb950; --orange: #d29922; --purple: #a371f7; --text: #c9d1d9; --dim: #8b949e; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        header { text-align: center; padding: 2rem 0; }
+        h1 { font-size: 2rem; color: var(--accent); }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .card { background: var(--card); border-radius: 12px; padding: 1.5rem; border: 1px solid #30363d; }
+        .card-full { grid-column: 1 / -1; }
+        .card-title { color: var(--accent); margin-bottom: 1rem; }
+        canvas { width: 100%; height: 280px; border-radius: 8px; background: rgba(0,0,0,0.3); }
+        .slider-group { margin: 0.5rem 0; }
+        .slider-group label { display: flex; justify-content: space-between; color: var(--dim); font-size: 0.9rem; }
+        input[type="range"] { width: 100%; margin-top: 0.3rem; }
+        .btn { padding: 0.5rem 1rem; background: var(--accent); border: none; border-radius: 6px; color: var(--bg); cursor: pointer; margin: 0.2rem; }
+        .result-box { background: rgba(88, 166, 255, 0.1); border: 1px solid #30363d; border-radius: 8px; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; margin: 0.5rem 0; }
+        .info { background: rgba(163, 113, 247, 0.1); border-left: 3px solid var(--purple); padding: 0.75rem; margin: 0.5rem 0; font-size: 0.9rem; }
+        .legend { display: flex; gap: 1rem; margin-top: 0.5rem; font-size: 0.85rem; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+        .legend-dot { width: 12px; height: 3px; border-radius: 2px; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第11回：オブザーバ</h1>
+            <p style="color: var(--dim);">State Observer (Luenberger Observer)</p>
+        </header>
+        
+        <div class="grid">
+            <div class="card">
+                <h3 class="card-title">🔧 オブザーバ極の設定</h3>
+                <div class="slider-group">
+                    <label>オブザーバ極の実部: <span id="obsPoleVal">-5.0</span></label>
+                    <input type="range" id="obsPoleSlider" min="-15" max="-1" step="0.5" value="-5">
+                </div>
+                <div class="info">
+                    制御器の極: s = -2 ± 2j<br>
+                    推奨: オブザーバは制御器の3〜5倍高速
+                </div>
+                <div class="result-box" id="observerGain">
+                    L = [ 7.00 ]
+                        [ 12.00 ]
+                </div>
+                <div class="result-box">
+                    オブザーバ極: <span id="obsPoles">s = -5, -5</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📊 システム構成</h3>
+                <div class="info">
+                    <strong>プラント:</strong><br>
+                    ẋ = Ax + Bu, y = Cx<br>
+                    A = [0, 1; -2, -3], B = [0; 1], C = [1, 0]
+                </div>
+                <div class="info">
+                    <strong>オブザーバ:</strong><br>
+                    ẋ̂ = Aẋ̂ + Bu + L(y - Cẋ̂)
+                </div>
+                <div class="info">
+                    <strong>制御則:</strong><br>
+                    u = -Kẋ̂, K = [8, 4]
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📈 状態と推定値</h3>
+                <canvas id="stateCanvas"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--accent);"></div>x₁ (実際)</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--orange);"></div>x̂₁ (推定)</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🎯 推定誤差</h3>
+                <canvas id="errorCanvas"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--green);"></div>e₁ = x₁ - x̂₁</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--purple);"></div>e₂ = x₂ - x̂₂</div>
+                </div>
+            </div>
+            
+            <div class="card card-full">
+                <h3 class="card-title">🔄 位相平面での比較</h3>
+                <canvas id="phaseCanvas" style="height: 350px;"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--accent);"></div>実際の状態軌道</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--orange);"></div>推定状態軌道</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const A = [[0, 1], [-2, -3]];
+        const B = [0, 1];
+        const C = [1, 0];
+        const K = [8, 4];
+        let L = [7, 12];
+        let obsPole = -5;
+        
+        const stateCanvas = document.getElementById('stateCanvas');
+        const stateCtx = stateCanvas.getContext('2d');
+        const errorCanvas = document.getElementById('errorCanvas');
+        const errorCtx = errorCanvas.getContext('2d');
+        const phaseCanvas = document.getElementById('phaseCanvas');
+        const phaseCtx = phaseCanvas.getContext('2d');
+        
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        
+        function initCanvases() {
+            setupCanvas(stateCanvas, stateCtx);
+            setupCanvas(errorCanvas, errorCtx);
+            setupCanvas(phaseCanvas, phaseCtx);
+        }
+        
+        function updateObserver() {
+            obsPole = parseFloat(document.getElementById('obsPoleSlider').value);
+            document.getElementById('obsPoleVal').textContent = obsPole.toFixed(1);
+            
+            // オブザーバゲインの計算（重根配置）
+            // 目標特性多項式: (s - p)² = s² - 2p*s + p²
+            // A - LC の特性方程式と比較
+            const p = obsPole;
+            L = [(-2*p) - (A[0][0] + A[1][1]), p*p - (A[0][0]*A[1][1] - A[0][1]*A[1][0]) + A[1][1]*(-2*p - A[0][0] - A[1][1])];
+            
+            // 簡易計算（2次系の場合）
+            L = [-2*p - 3, p*p + 3*(-2*p - 3) + 2];
+            
+            document.getElementById('observerGain').innerHTML = 
+                `L = [ ${L[0].toFixed(2)} ]<br>    [ ${L[1].toFixed(2)} ]`;
+            document.getElementById('obsPoles').textContent = `s = ${obsPole.toFixed(1)} (重根)`;
+            
+            drawAll();
+        }
+        
+        function simulate() {
+            const dt = 0.01;
+            const maxT = 6;
+            const data = [];
+            
+            // 初期条件
+            let x1 = 2, x2 = 1;  // 実際の状態
+            let xh1 = 0, xh2 = 0;  // 推定状態（誤った初期値）
+            
+            for (let t = 0; t <= maxT; t += dt) {
+                const y = C[0]*x1 + C[1]*x2;
+                const yh = C[0]*xh1 + C[1]*xh2;
+                const u = -K[0]*xh1 - K[1]*xh2;
+                
+                data.push({
+                    t,
+                    x1, x2, xh1, xh2,
+                    e1: x1 - xh1, e2: x2 - xh2
+                });
+                
+                // プラントの更新
+                const dx1 = A[0][0]*x1 + A[0][1]*x2 + B[0]*u;
+                const dx2 = A[1][0]*x1 + A[1][1]*x2 + B[1]*u;
+                
+                // オブザーバの更新
+                const dxh1 = A[0][0]*xh1 + A[0][1]*xh2 + B[0]*u + L[0]*(y - yh);
+                const dxh2 = A[1][0]*xh1 + A[1][1]*xh2 + B[1]*u + L[1]*(y - yh);
+                
+                x1 += dx1 * dt;
+                x2 += dx2 * dt;
+                xh1 += dxh1 * dt;
+                xh2 += dxh2 * dt;
+            }
+            
+            return data;
+        }
+        
+        function drawState() {
+            const w = stateCanvas.getBoundingClientRect().width;
+            const h = stateCanvas.getBoundingClientRect().height;
+            stateCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            stateCtx.fillRect(0, 0, w, h);
+            
+            const data = simulate();
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            const maxT = 6;
+            let maxVal = 1;
+            data.forEach(d => { maxVal = Math.max(maxVal, Math.abs(d.x1), Math.abs(d.xh1)); });
+            maxVal = Math.min(maxVal, 5);
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (y) => margin.top + plotH/2 - (y / maxVal) * (plotH/2) * 0.9;
+            
+            // グリッド
+            stateCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            for (let i = 0; i <= 4; i++) {
+                const y = margin.top + (plotH / 4) * i;
+                stateCtx.beginPath();
+                stateCtx.moveTo(margin.left, y);
+                stateCtx.lineTo(w - margin.right, y);
+                stateCtx.stroke();
+            }
+            
+            // 実際の状態
+            stateCtx.strokeStyle = 'var(--accent)';
+            stateCtx.lineWidth = 2;
+            stateCtx.beginPath();
+            data.forEach((d, i) => {
+                const y = toY(d.x1);
+                if (i === 0) stateCtx.moveTo(toX(d.t), y);
+                else stateCtx.lineTo(toX(d.t), y);
+            });
+            stateCtx.stroke();
+            
+            // 推定状態
+            stateCtx.strokeStyle = 'var(--orange)';
+            stateCtx.setLineDash([5, 3]);
+            stateCtx.beginPath();
+            data.forEach((d, i) => {
+                const y = toY(d.xh1);
+                if (i === 0) stateCtx.moveTo(toX(d.t), y);
+                else stateCtx.lineTo(toX(d.t), y);
+            });
+            stateCtx.stroke();
+            stateCtx.setLineDash([]);
+            
+            stateCtx.fillStyle = 'var(--dim)';
+            stateCtx.font = '11px JetBrains Mono';
+            stateCtx.fillText('t [s]', w - 30, h - 10);
+        }
+        
+        function drawError() {
+            const w = errorCanvas.getBoundingClientRect().width;
+            const h = errorCanvas.getBoundingClientRect().height;
+            errorCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            errorCtx.fillRect(0, 0, w, h);
+            
+            const data = simulate();
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            const maxT = 6;
+            let maxErr = 1;
+            data.forEach(d => { maxErr = Math.max(maxErr, Math.abs(d.e1), Math.abs(d.e2)); });
+            maxErr = Math.min(maxErr, 5);
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (e) => margin.top + plotH/2 - (e / maxErr) * (plotH/2) * 0.9;
+            
+            // グリッド
+            errorCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            for (let i = 0; i <= 4; i++) {
+                const y = margin.top + (plotH / 4) * i;
+                errorCtx.beginPath();
+                errorCtx.moveTo(margin.left, y);
+                errorCtx.lineTo(w - margin.right, y);
+                errorCtx.stroke();
+            }
+            
+            // ゼロライン
+            errorCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            errorCtx.beginPath();
+            errorCtx.moveTo(margin.left, toY(0));
+            errorCtx.lineTo(w - margin.right, toY(0));
+            errorCtx.stroke();
+            
+            // e1
+            errorCtx.strokeStyle = 'var(--green)';
+            errorCtx.lineWidth = 2;
+            errorCtx.beginPath();
+            data.forEach((d, i) => {
+                const y = toY(d.e1);
+                if (i === 0) errorCtx.moveTo(toX(d.t), y);
+                else errorCtx.lineTo(toX(d.t), y);
+            });
+            errorCtx.stroke();
+            
+            // e2
+            errorCtx.strokeStyle = 'var(--purple)';
+            errorCtx.beginPath();
+            data.forEach((d, i) => {
+                const y = toY(d.e2);
+                if (i === 0) errorCtx.moveTo(toX(d.t), y);
+                else errorCtx.lineTo(toX(d.t), y);
+            });
+            errorCtx.stroke();
+        }
+        
+        function drawPhase() {
+            const w = phaseCanvas.getBoundingClientRect().width;
+            const h = phaseCanvas.getBoundingClientRect().height;
+            phaseCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            phaseCtx.fillRect(0, 0, w, h);
+            
+            const data = simulate();
+            const cx = w / 2, cy = h / 2;
+            const scale = Math.min(w, h) / 6;
+            
+            // グリッド
+            phaseCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            for (let i = -3; i <= 3; i++) {
+                phaseCtx.beginPath();
+                phaseCtx.moveTo(cx + i * scale, 0);
+                phaseCtx.lineTo(cx + i * scale, h);
+                phaseCtx.stroke();
+                phaseCtx.beginPath();
+                phaseCtx.moveTo(0, cy + i * scale);
+                phaseCtx.lineTo(w, cy + i * scale);
+                phaseCtx.stroke();
+            }
+            
+            // 軸
+            phaseCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+            phaseCtx.lineWidth = 2;
+            phaseCtx.beginPath();
+            phaseCtx.moveTo(0, cy);
+            phaseCtx.lineTo(w, cy);
+            phaseCtx.moveTo(cx, 0);
+            phaseCtx.lineTo(cx, h);
+            phaseCtx.stroke();
+            
+            // 実際の軌道
+            phaseCtx.strokeStyle = 'var(--accent)';
+            phaseCtx.lineWidth = 2;
+            phaseCtx.beginPath();
+            data.forEach((d, i) => {
+                const px = cx + d.x1 * scale;
+                const py = cy - d.x2 * scale;
+                if (i === 0) phaseCtx.moveTo(px, py);
+                else phaseCtx.lineTo(px, py);
+            });
+            phaseCtx.stroke();
+            
+            // 推定軌道
+            phaseCtx.strokeStyle = 'var(--orange)';
+            phaseCtx.setLineDash([5, 3]);
+            phaseCtx.beginPath();
+            data.forEach((d, i) => {
+                const px = cx + d.xh1 * scale;
+                const py = cy - d.xh2 * scale;
+                if (i === 0) phaseCtx.moveTo(px, py);
+                else phaseCtx.lineTo(px, py);
+            });
+            phaseCtx.stroke();
+            phaseCtx.setLineDash([]);
+            
+            // 初期点
+            phaseCtx.fillStyle = 'var(--accent)';
+            phaseCtx.beginPath();
+            phaseCtx.arc(cx + 2 * scale, cy - 1 * scale, 5, 0, Math.PI * 2);
+            phaseCtx.fill();
+            
+            phaseCtx.fillStyle = 'var(--orange)';
+            phaseCtx.beginPath();
+            phaseCtx.arc(cx, cy, 5, 0, Math.PI * 2);
+            phaseCtx.fill();
+            
+            phaseCtx.fillStyle = 'var(--dim)';
+            phaseCtx.font = '12px JetBrains Mono';
+            phaseCtx.fillText('x₁', w - 25, cy - 10);
+            phaseCtx.fillText('x₂', cx + 10, 20);
+        }
+        
+        function drawAll() {
+            drawState();
+            drawError();
+            drawPhase();
+        }
+        
+        document.getElementById('obsPoleSlider').addEventListener('input', updateObserver);
+        
+        window.addEventListener('load', () => {
+            initCanvases();
+            updateObserver();
+        });
+        window.addEventListener('resize', () => { initCanvases(); drawAll(); });
+    </script>
+</body>
+</html>

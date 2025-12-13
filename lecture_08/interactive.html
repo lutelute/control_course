@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第8回：可制御性</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #0f1419; --card: #1c2128; --accent: #f97316; --green: #22c55e; --blue: #3b82f6; --text: #e6edf3; --dim: #7d8590; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        header { text-align: center; padding: 2rem 0; }
+        h1 { font-size: 2rem; color: var(--accent); }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .card { background: var(--card); border-radius: 12px; padding: 1.5rem; }
+        .card-full { grid-column: 1 / -1; }
+        .card-title { color: var(--accent); margin-bottom: 1rem; }
+        canvas { width: 100%; height: 300px; border-radius: 8px; background: rgba(0,0,0,0.3); }
+        .matrix-input { display: grid; grid-template-columns: repeat(2, 70px); gap: 0.4rem; margin: 0.5rem 0; }
+        .matrix-input input { padding: 0.4rem; background: rgba(255,255,255,0.1); border: 1px solid var(--accent); border-radius: 4px; color: var(--text); text-align: center; font-family: 'JetBrains Mono', monospace; }
+        .vector-input { display: grid; grid-template-columns: 70px; gap: 0.4rem; margin: 0.5rem 0; }
+        .vector-input input { padding: 0.4rem; background: rgba(255,255,255,0.1); border: 1px solid var(--blue); border-radius: 4px; color: var(--text); text-align: center; font-family: 'JetBrains Mono', monospace; }
+        .btn { padding: 0.5rem 1rem; background: var(--accent); border: none; border-radius: 6px; color: white; cursor: pointer; margin: 0.2rem; }
+        .result-box { background: rgba(249, 115, 22, 0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; margin: 0.5rem 0; }
+        .status { padding: 0.75rem; border-radius: 8px; text-align: center; font-weight: 500; margin: 0.5rem 0; }
+        .controllable { background: rgba(34, 197, 94, 0.2); border: 2px solid var(--green); color: var(--green); }
+        .not-controllable { background: rgba(239, 68, 68, 0.2); border: 2px solid #ef4444; color: #ef4444; }
+        .info { background: rgba(59, 130, 246, 0.1); border-left: 3px solid var(--blue); padding: 0.75rem; margin: 0.5rem 0; font-size: 0.9rem; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第8回：可制御性</h1>
+            <p style="color: var(--dim);">Controllability of Linear Systems</p>
+        </header>
+        
+        <div class="grid">
+            <div class="card">
+                <h3 class="card-title">📊 システム行列の設定</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <label style="color: var(--dim);">行列 A (2×2)</label>
+                        <div class="matrix-input">
+                            <input type="number" id="a11" value="0" step="0.5">
+                            <input type="number" id="a12" value="1" step="0.5">
+                            <input type="number" id="a21" value="-2" step="0.5">
+                            <input type="number" id="a22" value="-3" step="0.5">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="color: var(--dim);">ベクトル B</label>
+                        <div class="vector-input">
+                            <input type="number" id="b1" value="0" step="0.5">
+                            <input type="number" id="b2" value="1" step="0.5">
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem;">
+                    <button class="btn" onclick="checkControllability()">可制御性を判定</button>
+                    <button class="btn" onclick="setControllable()">可制御な例</button>
+                    <button class="btn" onclick="setNotControllable()">不可制御な例</button>
+                </div>
+                <div id="controllabilityStatus" class="status controllable">✓ システムは可制御</div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🔢 可制御性行列 C</h3>
+                <div class="info">C = [B | AB | A²B | ...]</div>
+                <div class="result-box" id="controlMatrix">
+                    C = [ 0   1 ]
+                        [ 1  -3 ]
+                </div>
+                <div class="result-box">
+                    <div>det(C) = <span id="detC">-1</span></div>
+                    <div>rank(C) = <span id="rankC">2</span></div>
+                    <div>n = <span id="systemOrder">2</span></div>
+                </div>
+            </div>
+            
+            <div class="card card-full">
+                <h3 class="card-title">🎮 可制御性の可視化</h3>
+                <canvas id="reachCanvas"></canvas>
+                <p style="font-size: 0.85rem; color: var(--dim); margin-top: 0.5rem;">
+                    可制御なシステムでは、任意の初期状態から原点へ到達可能
+                </p>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📈 最小エネルギー制御</h3>
+                <canvas id="controlCanvas"></canvas>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📋 可制御正準形</h3>
+                <div class="result-box" id="canonicalForm">
+                    可制御正準形:
+                    Ac = [ 0   1 ]
+                         [-a₀ -a₁]
+                    Bc = [0]
+                         [1]
+                </div>
+                <div class="info">
+                    可制御なシステムは座標変換により可制御正準形に変換可能
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let A = [[0, 1], [-2, -3]];
+        let B = [0, 1];
+        
+        const reachCanvas = document.getElementById('reachCanvas');
+        const reachCtx = reachCanvas.getContext('2d');
+        const controlCanvas = document.getElementById('controlCanvas');
+        const controlCtx = controlCanvas.getContext('2d');
+        
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        
+        function getSystem() {
+            A = [
+                [parseFloat(document.getElementById('a11').value), parseFloat(document.getElementById('a12').value)],
+                [parseFloat(document.getElementById('a21').value), parseFloat(document.getElementById('a22').value)]
+            ];
+            B = [parseFloat(document.getElementById('b1').value), parseFloat(document.getElementById('b2').value)];
+        }
+        
+        function matVec(M, v) {
+            return [M[0][0]*v[0] + M[0][1]*v[1], M[1][0]*v[0] + M[1][1]*v[1]];
+        }
+        
+        function checkControllability() {
+            getSystem();
+            
+            // AB を計算
+            const AB = matVec(A, B);
+            
+            // 可制御性行列 C = [B | AB]
+            const C = [[B[0], AB[0]], [B[1], AB[1]]];
+            const detC = C[0][0]*C[1][1] - C[0][1]*C[1][0];
+            const rankC = Math.abs(detC) > 1e-10 ? 2 : (Math.abs(B[0]) > 1e-10 || Math.abs(B[1]) > 1e-10 || Math.abs(AB[0]) > 1e-10 || Math.abs(AB[1]) > 1e-10 ? 1 : 0);
+            
+            document.getElementById('controlMatrix').innerHTML = 
+                `C = [ ${B[0].toFixed(2)}  ${AB[0].toFixed(2)} ]<br>` +
+                `    [ ${B[1].toFixed(2)}  ${AB[1].toFixed(2)} ]`;
+            document.getElementById('detC').textContent = detC.toFixed(4);
+            document.getElementById('rankC').textContent = rankC;
+            document.getElementById('systemOrder').textContent = '2';
+            
+            const isControllable = rankC === 2;
+            const status = document.getElementById('controllabilityStatus');
+            status.className = isControllable ? 'status controllable' : 'status not-controllable';
+            status.textContent = isControllable ? '✓ システムは可制御' : '✗ システムは不可制御';
+            
+            // 可制御正準形
+            const a0 = A[0][0]*A[1][1] - A[0][1]*A[1][0];
+            const a1 = -(A[0][0] + A[1][1]);
+            document.getElementById('canonicalForm').innerHTML = 
+                `可制御正準形:<br>` +
+                `Ac = [  0    1  ]<br>` +
+                `     [ ${(-a0).toFixed(2)}  ${(-a1).toFixed(2)} ]<br>` +
+                `Bc = [0]<br>` +
+                `     [1]`;
+            
+            drawReachable();
+            drawControl();
+        }
+        
+        function drawReachable() {
+            const w = reachCanvas.getBoundingClientRect().width;
+            const h = reachCanvas.getBoundingClientRect().height;
+            reachCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            reachCtx.fillRect(0, 0, w, h);
+            
+            const cx = w / 2, cy = h / 2;
+            const scale = Math.min(w, h) / 8;
+            
+            // グリッド
+            reachCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            reachCtx.lineWidth = 1;
+            for (let i = -3; i <= 3; i++) {
+                reachCtx.beginPath();
+                reachCtx.moveTo(cx + i * scale, 0);
+                reachCtx.lineTo(cx + i * scale, h);
+                reachCtx.stroke();
+                reachCtx.beginPath();
+                reachCtx.moveTo(0, cy + i * scale);
+                reachCtx.lineTo(w, cy + i * scale);
+                reachCtx.stroke();
+            }
+            
+            // 軸
+            reachCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+            reachCtx.lineWidth = 2;
+            reachCtx.beginPath();
+            reachCtx.moveTo(0, cy);
+            reachCtx.lineTo(w, cy);
+            reachCtx.moveTo(cx, 0);
+            reachCtx.lineTo(cx, h);
+            reachCtx.stroke();
+            
+            // 複数の初期点から軌道を描画
+            const initialPoints = [
+                [2, 1], [-2, 1], [2, -1], [-2, -1],
+                [1, 2], [-1, 2], [1, -2], [-1, -2]
+            ];
+            
+            initialPoints.forEach((p0, idx) => {
+                const dt = 0.02;
+                const maxT = 5;
+                let x1 = p0[0], x2 = p0[1];
+                
+                // 簡単なフィードバック制御で原点へ誘導
+                reachCtx.strokeStyle = `hsl(${idx * 45}, 70%, 60%)`;
+                reachCtx.lineWidth = 1.5;
+                reachCtx.beginPath();
+                reachCtx.moveTo(cx + x1 * scale, cy - x2 * scale);
+                
+                for (let t = 0; t < maxT; t += dt) {
+                    // 簡易フィードバック u = -k1*x1 - k2*x2
+                    const u = -2*x1 - 3*x2;
+                    const dx1 = A[0][0]*x1 + A[0][1]*x2 + B[0]*u;
+                    const dx2 = A[1][0]*x1 + A[1][1]*x2 + B[1]*u;
+                    x1 += dx1 * dt;
+                    x2 += dx2 * dt;
+                    
+                    if (Math.abs(x1) > 5 || Math.abs(x2) > 5) break;
+                    reachCtx.lineTo(cx + x1 * scale, cy - x2 * scale);
+                }
+                reachCtx.stroke();
+                
+                // 初期点
+                reachCtx.fillStyle = `hsl(${idx * 45}, 70%, 60%)`;
+                reachCtx.beginPath();
+                reachCtx.arc(cx + p0[0] * scale, cy - p0[1] * scale, 4, 0, Math.PI * 2);
+                reachCtx.fill();
+            });
+            
+            // 原点
+            reachCtx.fillStyle = 'var(--green)';
+            reachCtx.beginPath();
+            reachCtx.arc(cx, cy, 6, 0, Math.PI * 2);
+            reachCtx.fill();
+            
+            // ラベル
+            reachCtx.fillStyle = 'var(--dim)';
+            reachCtx.font = '12px JetBrains Mono';
+            reachCtx.fillText('x₁', w - 25, cy - 10);
+            reachCtx.fillText('x₂', cx + 10, 20);
+        }
+        
+        function drawControl() {
+            const w = controlCanvas.getBoundingClientRect().width;
+            const h = controlCanvas.getBoundingClientRect().height;
+            controlCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            controlCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            // 制御入力の時間履歴
+            const dt = 0.02;
+            const maxT = 5;
+            const data = [];
+            let x1 = 2, x2 = 1;
+            let maxU = 1;
+            
+            for (let t = 0; t <= maxT; t += dt) {
+                const u = -2*x1 - 3*x2;
+                data.push({ t, u });
+                maxU = Math.max(maxU, Math.abs(u));
+                
+                const dx1 = A[0][0]*x1 + A[0][1]*x2 + B[0]*u;
+                const dx2 = A[1][0]*x1 + A[1][1]*x2 + B[1]*u;
+                x1 += dx1 * dt;
+                x2 += dx2 * dt;
+            }
+            
+            maxU = Math.min(maxU, 20);
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (u) => margin.top + plotH/2 - (u / maxU) * (plotH/2) * 0.9;
+            
+            // グリッド
+            controlCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            for (let i = 0; i <= 4; i++) {
+                const y = margin.top + (plotH / 4) * i;
+                controlCtx.beginPath();
+                controlCtx.moveTo(margin.left, y);
+                controlCtx.lineTo(w - margin.right, y);
+                controlCtx.stroke();
+            }
+            
+            // ゼロライン
+            controlCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            controlCtx.beginPath();
+            controlCtx.moveTo(margin.left, toY(0));
+            controlCtx.lineTo(w - margin.right, toY(0));
+            controlCtx.stroke();
+            
+            // 制御入力
+            controlCtx.strokeStyle = 'var(--accent)';
+            controlCtx.lineWidth = 2;
+            controlCtx.beginPath();
+            data.forEach((p, i) => {
+                const y = Math.max(margin.top, Math.min(h - margin.bottom, toY(p.u)));
+                if (i === 0) controlCtx.moveTo(toX(p.t), y);
+                else controlCtx.lineTo(toX(p.t), y);
+            });
+            controlCtx.stroke();
+            
+            // ラベル
+            controlCtx.fillStyle = 'var(--dim)';
+            controlCtx.font = '11px JetBrains Mono';
+            controlCtx.fillText('t [s]', w - 30, h - 10);
+            controlCtx.fillText('u(t)', margin.left, margin.top - 5);
+        }
+        
+        function setControllable() {
+            document.getElementById('a11').value = 0;
+            document.getElementById('a12').value = 1;
+            document.getElementById('a21').value = -2;
+            document.getElementById('a22').value = -3;
+            document.getElementById('b1').value = 0;
+            document.getElementById('b2').value = 1;
+            checkControllability();
+        }
+        
+        function setNotControllable() {
+            document.getElementById('a11').value = -1;
+            document.getElementById('a12').value = 0;
+            document.getElementById('a21').value = 0;
+            document.getElementById('a22').value = -2;
+            document.getElementById('b1').value = 1;
+            document.getElementById('b2').value = 0;
+            checkControllability();
+        }
+        
+        window.addEventListener('load', () => {
+            setupCanvas(reachCanvas, reachCtx);
+            setupCanvas(controlCanvas, controlCtx);
+            checkControllability();
+        });
+        window.addEventListener('resize', () => {
+            setupCanvas(reachCanvas, reachCtx);
+            setupCanvas(controlCanvas, controlCtx);
+            drawReachable();
+            drawControl();
+        });
+    </script>
+</body>
+</html>

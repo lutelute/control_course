@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第3回：状態方程式の解</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f0f1a;
+            --bg-card: #1a1a2e;
+            --bg-input: #16213e;
+            --accent-1: #e94560;
+            --accent-2: #0f3460;
+            --accent-3: #533483;
+            --accent-4: #00d9ff;
+            --text-light: #eaeaea;
+            --text-dim: #8892b0;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(ellipse at 20% 80%, rgba(83, 52, 131, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(233, 69, 96, 0.1) 0%, transparent 50%);
+        }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        
+        header {
+            text-align: center;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, var(--accent-4), var(--accent-1));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+        
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .card-full { grid-column: 1 / -1; }
+        
+        .card-title {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--accent-4);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 300px;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+        }
+        
+        .matrix-input {
+            display: grid;
+            grid-template-columns: repeat(2, 80px);
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+        }
+        
+        .matrix-input input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--accent-2);
+            border-radius: 6px;
+            background: var(--bg-input);
+            color: var(--text-light);
+            font-family: 'JetBrains Mono', monospace;
+            text-align: center;
+        }
+        
+        .vector-input {
+            display: grid;
+            grid-template-columns: 80px;
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+        }
+        
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-3));
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: var(--bg-input);
+            color: var(--text-light);
+            border: 1px solid var(--accent-2);
+        }
+        
+        .btn:hover { transform: translateY(-2px); }
+        
+        .result-box {
+            background: rgba(0,217,255,0.1);
+            border: 1px solid var(--accent-4);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .time-slider {
+            width: 100%;
+            margin: 1rem 0;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.85rem;
+        }
+        
+        .legend-line {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+        
+        .info-text {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        
+        .eigenvalue-display {
+            background: var(--bg-input);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .eigen-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.3rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .phase-canvas { aspect-ratio: 1; height: auto; }
+        
+        @media (max-width: 900px) {
+            .grid { grid-template-columns: 1fr; }
+            .card-full { grid-column: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第3回：状態方程式の解</h1>
+            <p style="color: var(--text-dim);">Solution of State Equations & Matrix Exponential</p>
+        </header>
+        
+        <div class="grid">
+            <!-- 行列設定 -->
+            <div class="card">
+                <h3 class="card-title">📊 システム行列 A</h3>
+                <p class="info-text">2×2行列Aの要素を設定してください</p>
+                <div class="matrix-input">
+                    <input type="number" id="a11" value="0" step="0.5">
+                    <input type="number" id="a12" value="1" step="0.5">
+                    <input type="number" id="a21" value="-2" step="0.5">
+                    <input type="number" id="a22" value="-3" step="0.5">
+                </div>
+                
+                <h4 style="margin-top: 1rem; color: var(--text-dim);">初期状態 x₀</h4>
+                <div class="vector-input">
+                    <input type="number" id="x01" value="1" step="0.1">
+                    <input type="number" id="x02" value="0" step="0.1">
+                </div>
+                
+                <div class="eigenvalue-display">
+                    <div class="eigen-item">
+                        <span>固有値 λ₁:</span>
+                        <span id="eig1" style="color: var(--accent-4);">-1.00</span>
+                    </div>
+                    <div class="eigen-item">
+                        <span>固有値 λ₂:</span>
+                        <span id="eig2" style="color: var(--accent-1);">-2.00</span>
+                    </div>
+                    <div class="eigen-item">
+                        <span>システムの安定性:</span>
+                        <span id="stability" style="color: #4ade80;">安定</span>
+                    </div>
+                </div>
+                
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="updateSystem()">更新</button>
+                    <button class="btn btn-secondary" onclick="setPreset1()">振動系</button>
+                    <button class="btn btn-secondary" onclick="setPreset2()">不安定系</button>
+                </div>
+            </div>
+            
+            <!-- 遷移行列表示 -->
+            <div class="card">
+                <h3 class="card-title">🔢 遷移行列 e^(At)</h3>
+                <p class="info-text">時刻 t における遷移行列の値</p>
+                
+                <div style="margin: 1rem 0;">
+                    <label>時刻 t = <span id="tValue">0.00</span> s</label>
+                    <input type="range" id="tSlider" class="time-slider" min="0" max="5" step="0.05" value="0">
+                </div>
+                
+                <div class="result-box">
+                    <div>e^(At) =</div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 0.5rem;">
+                        <span id="phi11">1.000</span>
+                        <span id="phi12">0.000</span>
+                        <span id="phi21">0.000</span>
+                        <span id="phi22">1.000</span>
+                    </div>
+                </div>
+                
+                <div class="result-box" style="margin-top: 0.5rem;">
+                    <div>x(t) = e^(At)·x₀ =</div>
+                    <div style="margin-top: 0.5rem;">
+                        <span id="xt1">1.000</span><br>
+                        <span id="xt2">0.000</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 状態の時間発展 -->
+            <div class="card card-full">
+                <h3 class="card-title">📈 状態変数の時間発展</h3>
+                <canvas id="timeCanvas"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-line" style="background: var(--accent-4);"></div>
+                        <span>x₁(t)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-line" style="background: var(--accent-1);"></div>
+                        <span>x₂(t)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-line" style="background: #4ade80;"></div>
+                        <span>||x(t)||</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 位相平面 -->
+            <div class="card">
+                <h3 class="card-title">🌀 位相平面軌道</h3>
+                <canvas id="phaseCanvas" class="phase-canvas"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-line" style="background: var(--accent-4);"></div>
+                        <span>状態軌道</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 遷移行列要素の時間変化 -->
+            <div class="card">
+                <h3 class="card-title">🔄 遷移行列要素 Φᵢⱼ(t)</h3>
+                <canvas id="phiCanvas"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-line" style="background: #ff6b6b;"></div>
+                        <span>Φ₁₁</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-line" style="background: #4ecdc4;"></div>
+                        <span>Φ₁₂</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-line" style="background: #ffe66d;"></div>
+                        <span>Φ₂₁</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-line" style="background: #a29bfe;"></div>
+                        <span>Φ₂₂</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 行列 A と初期状態
+        let A = [[0, 1], [-2, -3]];
+        let x0 = [1, 0];
+        let tCurrent = 0;
+        
+        // キャンバス
+        const timeCanvas = document.getElementById('timeCanvas');
+        const timeCtx = timeCanvas.getContext('2d');
+        const phaseCanvas = document.getElementById('phaseCanvas');
+        const phaseCtx = phaseCanvas.getContext('2d');
+        const phiCanvas = document.getElementById('phiCanvas');
+        const phiCtx = phiCanvas.getContext('2d');
+        
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        
+        function initCanvases() {
+            setupCanvas(timeCanvas, timeCtx);
+            setupCanvas(phaseCanvas, phaseCtx);
+            setupCanvas(phiCanvas, phiCtx);
+            draw();
+        }
+        
+        // 行列指数関数（級数展開、簡易版）
+        function matrixExp(A, t, terms = 30) {
+            const n = A.length;
+            let result = [[1, 0], [0, 1]]; // 単位行列
+            let power = [[1, 0], [0, 1]];  // A^k
+            let factorial = 1;
+            
+            for (let k = 1; k < terms; k++) {
+                // power = power * A * t
+                power = matMul(power, A);
+                factorial *= k;
+                
+                const coef = Math.pow(t, k) / factorial;
+                result = matAdd(result, matScale(power, coef));
+            }
+            return result;
+        }
+        
+        function matMul(A, B) {
+            return [
+                [A[0][0]*B[0][0] + A[0][1]*B[1][0], A[0][0]*B[0][1] + A[0][1]*B[1][1]],
+                [A[1][0]*B[0][0] + A[1][1]*B[1][0], A[1][0]*B[0][1] + A[1][1]*B[1][1]]
+            ];
+        }
+        
+        function matAdd(A, B) {
+            return [
+                [A[0][0]+B[0][0], A[0][1]+B[0][1]],
+                [A[1][0]+B[1][0], A[1][1]+B[1][1]]
+            ];
+        }
+        
+        function matScale(A, s) {
+            return [
+                [A[0][0]*s, A[0][1]*s],
+                [A[1][0]*s, A[1][1]*s]
+            ];
+        }
+        
+        function matVec(A, x) {
+            return [
+                A[0][0]*x[0] + A[0][1]*x[1],
+                A[1][0]*x[0] + A[1][1]*x[1]
+            ];
+        }
+        
+        // 固有値計算（2x2）
+        function eigenvalues(A) {
+            const tr = A[0][0] + A[1][1];
+            const det = A[0][0]*A[1][1] - A[0][1]*A[1][0];
+            const disc = tr*tr - 4*det;
+            
+            if (disc >= 0) {
+                return [
+                    { re: (tr + Math.sqrt(disc))/2, im: 0 },
+                    { re: (tr - Math.sqrt(disc))/2, im: 0 }
+                ];
+            } else {
+                return [
+                    { re: tr/2, im: Math.sqrt(-disc)/2 },
+                    { re: tr/2, im: -Math.sqrt(-disc)/2 }
+                ];
+            }
+        }
+        
+        function updateInputs() {
+            A = [
+                [parseFloat(document.getElementById('a11').value), parseFloat(document.getElementById('a12').value)],
+                [parseFloat(document.getElementById('a21').value), parseFloat(document.getElementById('a22').value)]
+            ];
+            x0 = [
+                parseFloat(document.getElementById('x01').value),
+                parseFloat(document.getElementById('x02').value)
+            ];
+        }
+        
+        function updateEigenvalueDisplay() {
+            const eigs = eigenvalues(A);
+            
+            const formatEig = (e) => {
+                if (Math.abs(e.im) < 0.001) return e.re.toFixed(2);
+                const sign = e.im >= 0 ? '+' : '-';
+                return `${e.re.toFixed(2)} ${sign} ${Math.abs(e.im).toFixed(2)}j`;
+            };
+            
+            document.getElementById('eig1').textContent = formatEig(eigs[0]);
+            document.getElementById('eig2').textContent = formatEig(eigs[1]);
+            
+            // 安定性判定
+            const stable = eigs.every(e => e.re < 0);
+            const marginal = eigs.some(e => Math.abs(e.re) < 0.01);
+            
+            const stabilityEl = document.getElementById('stability');
+            if (stable) {
+                stabilityEl.textContent = '漸近安定';
+                stabilityEl.style.color = '#4ade80';
+            } else if (marginal) {
+                stabilityEl.textContent = '臨界安定';
+                stabilityEl.style.color = '#fbbf24';
+            } else {
+                stabilityEl.textContent = '不安定';
+                stabilityEl.style.color = '#f87171';
+            }
+        }
+        
+        function updateTransitionMatrix() {
+            const phi = matrixExp(A, tCurrent);
+            const xt = matVec(phi, x0);
+            
+            document.getElementById('phi11').textContent = phi[0][0].toFixed(3);
+            document.getElementById('phi12').textContent = phi[0][1].toFixed(3);
+            document.getElementById('phi21').textContent = phi[1][0].toFixed(3);
+            document.getElementById('phi22').textContent = phi[1][1].toFixed(3);
+            
+            document.getElementById('xt1').textContent = xt[0].toFixed(3);
+            document.getElementById('xt2').textContent = xt[1].toFixed(3);
+        }
+        
+        function drawTimeResponse() {
+            const w = timeCanvas.getBoundingClientRect().width;
+            const h = timeCanvas.getBoundingClientRect().height;
+            
+            timeCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            timeCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            // 軌道計算
+            const trajectory = [];
+            const maxT = 5;
+            const dt = 0.02;
+            
+            let maxVal = 1;
+            for (let t = 0; t <= maxT; t += dt) {
+                const phi = matrixExp(A, t);
+                const xt = matVec(phi, x0);
+                const norm = Math.sqrt(xt[0]*xt[0] + xt[1]*xt[1]);
+                trajectory.push({ t, x1: xt[0], x2: xt[1], norm });
+                maxVal = Math.max(maxVal, Math.abs(xt[0]), Math.abs(xt[1]), norm);
+            }
+            
+            maxVal = Math.min(maxVal, 10); // クランプ
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (v) => margin.top + plotH/2 - (v / maxVal) * (plotH/2);
+            
+            // グリッド
+            timeCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            timeCtx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = margin.top + (plotH / 5) * i;
+                timeCtx.beginPath();
+                timeCtx.moveTo(margin.left, y);
+                timeCtx.lineTo(w - margin.right, y);
+                timeCtx.stroke();
+            }
+            
+            // ゼロライン
+            timeCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            timeCtx.beginPath();
+            timeCtx.moveTo(margin.left, toY(0));
+            timeCtx.lineTo(w - margin.right, toY(0));
+            timeCtx.stroke();
+            
+            // x1
+            timeCtx.strokeStyle = '#00d9ff';
+            timeCtx.lineWidth = 2;
+            timeCtx.beginPath();
+            trajectory.forEach((p, i) => {
+                const clampedY = Math.max(-maxVal, Math.min(maxVal, p.x1));
+                if (i === 0) timeCtx.moveTo(toX(p.t), toY(clampedY));
+                else timeCtx.lineTo(toX(p.t), toY(clampedY));
+            });
+            timeCtx.stroke();
+            
+            // x2
+            timeCtx.strokeStyle = '#e94560';
+            timeCtx.beginPath();
+            trajectory.forEach((p, i) => {
+                const clampedY = Math.max(-maxVal, Math.min(maxVal, p.x2));
+                if (i === 0) timeCtx.moveTo(toX(p.t), toY(clampedY));
+                else timeCtx.lineTo(toX(p.t), toY(clampedY));
+            });
+            timeCtx.stroke();
+            
+            // ノルム
+            timeCtx.strokeStyle = '#4ade80';
+            timeCtx.lineWidth = 1.5;
+            timeCtx.setLineDash([5, 5]);
+            timeCtx.beginPath();
+            trajectory.forEach((p, i) => {
+                const clampedY = Math.min(maxVal, p.norm);
+                if (i === 0) timeCtx.moveTo(toX(p.t), toY(clampedY));
+                else timeCtx.lineTo(toX(p.t), toY(clampedY));
+            });
+            timeCtx.stroke();
+            timeCtx.setLineDash([]);
+            
+            // 現在時刻マーカー
+            if (tCurrent > 0) {
+                timeCtx.strokeStyle = '#fbbf24';
+                timeCtx.lineWidth = 2;
+                timeCtx.beginPath();
+                timeCtx.moveTo(toX(tCurrent), margin.top);
+                timeCtx.lineTo(toX(tCurrent), h - margin.bottom);
+                timeCtx.stroke();
+            }
+        }
+        
+        function drawPhasePlane() {
+            const w = phaseCanvas.getBoundingClientRect().width;
+            const h = phaseCanvas.getBoundingClientRect().height;
+            
+            phaseCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            phaseCtx.fillRect(0, 0, w, h);
+            
+            const centerX = w / 2;
+            const centerY = h / 2;
+            
+            // 軌道計算
+            const trajectory = [];
+            const maxT = 10;
+            const dt = 0.02;
+            let maxVal = 1;
+            
+            for (let t = 0; t <= maxT; t += dt) {
+                const phi = matrixExp(A, t);
+                const xt = matVec(phi, x0);
+                trajectory.push(xt);
+                maxVal = Math.max(maxVal, Math.abs(xt[0]), Math.abs(xt[1]));
+            }
+            
+            maxVal = Math.min(maxVal, 5);
+            const scale = Math.min(w, h) * 0.35 / maxVal;
+            
+            // グリッド
+            phaseCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            phaseCtx.lineWidth = 1;
+            for (let i = -4; i <= 4; i++) {
+                phaseCtx.beginPath();
+                phaseCtx.moveTo(centerX + i * scale * maxVal / 4, 20);
+                phaseCtx.lineTo(centerX + i * scale * maxVal / 4, h - 20);
+                phaseCtx.stroke();
+                
+                phaseCtx.beginPath();
+                phaseCtx.moveTo(20, centerY + i * scale * maxVal / 4);
+                phaseCtx.lineTo(w - 20, centerY + i * scale * maxVal / 4);
+                phaseCtx.stroke();
+            }
+            
+            // 軸
+            phaseCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+            phaseCtx.lineWidth = 2;
+            phaseCtx.beginPath();
+            phaseCtx.moveTo(20, centerY);
+            phaseCtx.lineTo(w - 20, centerY);
+            phaseCtx.moveTo(centerX, 20);
+            phaseCtx.lineTo(centerX, h - 20);
+            phaseCtx.stroke();
+            
+            // 軌道
+            phaseCtx.strokeStyle = '#00d9ff';
+            phaseCtx.lineWidth = 2;
+            phaseCtx.beginPath();
+            trajectory.forEach((pt, i) => {
+                const x = centerX + pt[0] * scale;
+                const y = centerY - pt[1] * scale;
+                if (i === 0) phaseCtx.moveTo(x, y);
+                else phaseCtx.lineTo(x, y);
+            });
+            phaseCtx.stroke();
+            
+            // 現在位置
+            const phi = matrixExp(A, tCurrent);
+            const xt = matVec(phi, x0);
+            phaseCtx.fillStyle = '#e94560';
+            phaseCtx.beginPath();
+            phaseCtx.arc(centerX + xt[0] * scale, centerY - xt[1] * scale, 6, 0, Math.PI * 2);
+            phaseCtx.fill();
+            
+            // 初期位置
+            phaseCtx.fillStyle = '#4ade80';
+            phaseCtx.beginPath();
+            phaseCtx.arc(centerX + x0[0] * scale, centerY - x0[1] * scale, 5, 0, Math.PI * 2);
+            phaseCtx.fill();
+            
+            // ラベル
+            phaseCtx.fillStyle = 'rgba(255,255,255,0.6)';
+            phaseCtx.font = '12px JetBrains Mono';
+            phaseCtx.fillText('x₁', w - 30, centerY - 5);
+            phaseCtx.fillText('x₂', centerX + 5, 30);
+        }
+        
+        function drawPhiElements() {
+            const w = phiCanvas.getBoundingClientRect().width;
+            const h = phiCanvas.getBoundingClientRect().height;
+            
+            phiCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            phiCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            const maxT = 5;
+            const dt = 0.05;
+            const data = { phi11: [], phi12: [], phi21: [], phi22: [] };
+            let maxVal = 1;
+            
+            for (let t = 0; t <= maxT; t += dt) {
+                const phi = matrixExp(A, t);
+                data.phi11.push({ t, v: phi[0][0] });
+                data.phi12.push({ t, v: phi[0][1] });
+                data.phi21.push({ t, v: phi[1][0] });
+                data.phi22.push({ t, v: phi[1][1] });
+                maxVal = Math.max(maxVal, Math.abs(phi[0][0]), Math.abs(phi[0][1]),
+                                  Math.abs(phi[1][0]), Math.abs(phi[1][1]));
+            }
+            
+            maxVal = Math.min(maxVal, 5);
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (v) => margin.top + plotH/2 - (v / maxVal) * (plotH/2);
+            
+            // グリッド
+            phiCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            phiCtx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = margin.top + (plotH / 4) * i;
+                phiCtx.beginPath();
+                phiCtx.moveTo(margin.left, y);
+                phiCtx.lineTo(w - margin.right, y);
+                phiCtx.stroke();
+            }
+            
+            const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a29bfe'];
+            const keys = ['phi11', 'phi12', 'phi21', 'phi22'];
+            
+            keys.forEach((key, idx) => {
+                phiCtx.strokeStyle = colors[idx];
+                phiCtx.lineWidth = 2;
+                phiCtx.beginPath();
+                data[key].forEach((p, i) => {
+                    const clampedV = Math.max(-maxVal, Math.min(maxVal, p.v));
+                    if (i === 0) phiCtx.moveTo(toX(p.t), toY(clampedV));
+                    else phiCtx.lineTo(toX(p.t), toY(clampedV));
+                });
+                phiCtx.stroke();
+            });
+        }
+        
+        function draw() {
+            updateEigenvalueDisplay();
+            updateTransitionMatrix();
+            drawTimeResponse();
+            drawPhasePlane();
+            drawPhiElements();
+        }
+        
+        function updateSystem() {
+            updateInputs();
+            draw();
+        }
+        
+        function setPreset1() {
+            document.getElementById('a11').value = 0;
+            document.getElementById('a12').value = 1;
+            document.getElementById('a21').value = -4;
+            document.getElementById('a22').value = -0.5;
+            document.getElementById('x01').value = 2;
+            document.getElementById('x02').value = 0;
+            updateSystem();
+        }
+        
+        function setPreset2() {
+            document.getElementById('a11').value = 0;
+            document.getElementById('a12').value = 1;
+            document.getElementById('a21').value = 2;
+            document.getElementById('a22').value = 1;
+            document.getElementById('x01').value = 0.1;
+            document.getElementById('x02').value = 0;
+            updateSystem();
+        }
+        
+        // スライダー
+        document.getElementById('tSlider').addEventListener('input', (e) => {
+            tCurrent = parseFloat(e.target.value);
+            document.getElementById('tValue').textContent = tCurrent.toFixed(2);
+            updateTransitionMatrix();
+            drawTimeResponse();
+            drawPhasePlane();
+        });
+        
+        window.addEventListener('load', () => {
+            initCanvases();
+            draw();
+        });
+        
+        window.addEventListener('resize', initCanvases);
+    </script>
+</body>
+</html>

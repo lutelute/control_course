@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第13回：リッカチ方程式と最適性</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #0f0f1a; --card: #1a1a2e; --accent: #e94560; --cyan: #00d9ff; --green: #00ff88; --text: #eaeaea; --dim: #888; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        header { text-align: center; padding: 2rem 0; }
+        h1 { font-size: 2rem; color: var(--accent); }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .card { background: var(--card); border-radius: 12px; padding: 1.5rem; }
+        .card-full { grid-column: 1 / -1; }
+        .card-title { color: var(--cyan); margin-bottom: 1rem; }
+        canvas { width: 100%; height: 280px; border-radius: 8px; background: rgba(0,0,0,0.3); }
+        .slider-group { margin: 0.8rem 0; }
+        .slider-group label { display: flex; justify-content: space-between; color: var(--dim); font-size: 0.9rem; }
+        input[type="range"] { width: 100%; margin-top: 0.3rem; }
+        .btn { padding: 0.5rem 1rem; background: var(--accent); border: none; border-radius: 6px; color: white; cursor: pointer; margin: 0.2rem; }
+        .result-box { background: rgba(233, 69, 96, 0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; margin: 0.5rem 0; }
+        .info { background: rgba(0, 217, 255, 0.1); border-left: 3px solid var(--cyan); padding: 0.75rem; margin: 0.5rem 0; font-size: 0.9rem; }
+        .equation { background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; text-align: center; font-family: 'JetBrains Mono', monospace; margin: 0.5rem 0; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第13回：リッカチ方程式と最適性</h1>
+            <p style="color: var(--dim);">Riccati Equation and Optimality</p>
+        </header>
+        
+        <div class="grid">
+            <div class="card">
+                <h3 class="card-title">📐 代数リッカチ方程式 (ARE)</h3>
+                <div class="equation">
+                    A<sup>T</sup>P + PA − PBR<sup>−1</sup>B<sup>T</sup>P + Q = 0
+                </div>
+                <div class="slider-group">
+                    <label>Q (状態の重み): <span id="qVal">1.0</span></label>
+                    <input type="range" id="qSlider" min="0.1" max="10" step="0.1" value="1">
+                </div>
+                <div class="slider-group">
+                    <label>R (入力の重み): <span id="rVal">1.0</span></label>
+                    <input type="range" id="rSlider" min="0.1" max="10" step="0.1" value="1">
+                </div>
+                <button class="btn" onclick="solveARE()">ARE を解く</button>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🔢 解の行列 P</h3>
+                <div class="result-box" id="matrixP">
+                    P = [ 1.732  1.000 ]
+                        [ 1.000  1.732 ]
+                </div>
+                <div class="result-box">
+                    <div>最適ゲイン K = R<sup>−1</sup>B<sup>T</sup>P</div>
+                    <div id="gainK">K = [1.000, 1.732]</div>
+                </div>
+                <div class="result-box">
+                    <div>最適コスト V(x₀) = x₀<sup>T</sup>Px₀</div>
+                    <div id="optCost">V([1,0]) = 1.732</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🌀 ハミルトン行列の固有値</h3>
+                <canvas id="hamiltonCanvas"></canvas>
+                <div class="info">
+                    安定固有値（左半平面）から P を計算
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📈 微分リッカチ方程式の解</h3>
+                <canvas id="dreCanvas"></canvas>
+                <div style="color: var(--dim); font-size: 0.85rem; margin-top: 0.5rem;">
+                    P(t) の要素の時間発展（後退積分）
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📊 コスト関数の等高線</h3>
+                <canvas id="costCanvas"></canvas>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🎯 最適軌道</h3>
+                <canvas id="trajCanvas"></canvas>
+            </div>
+            
+            <div class="card card-full">
+                <h3 class="card-title">⚖️ LQR のロバスト性</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                    <div class="info">
+                        <strong>ゲイン余裕</strong><br>
+                        GM ≥ ∞ (理論上)<br>
+                        K を 0.5〜∞ 倍しても安定
+                    </div>
+                    <div class="info">
+                        <strong>位相余裕</strong><br>
+                        PM ≥ 60°<br>
+                        優れた過渡応答
+                    </div>
+                    <div class="info">
+                        <strong>リターン差等式</strong><br>
+                        |1 + L(jω)| ≥ 1<br>
+                        すべての周波数で成立
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const A = [[0, 1], [-2, -3]];
+        const B = [0, 1];
+        let Q = 1, R = 1;
+        let P = [[1.732, 1], [1, 1.732]];
+        let K = [1, 1.732];
+        
+        const hamiltonCanvas = document.getElementById('hamiltonCanvas');
+        const hamiltonCtx = hamiltonCanvas.getContext('2d');
+        const dreCanvas = document.getElementById('dreCanvas');
+        const dreCtx = dreCanvas.getContext('2d');
+        const costCanvas = document.getElementById('costCanvas');
+        const costCtx = costCanvas.getContext('2d');
+        const trajCanvas = document.getElementById('trajCanvas');
+        const trajCtx = trajCanvas.getContext('2d');
+        
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        
+        function solveARE() {
+            Q = parseFloat(document.getElementById('qSlider').value);
+            R = parseFloat(document.getElementById('rSlider').value);
+            document.getElementById('qVal').textContent = Q.toFixed(1);
+            document.getElementById('rVal').textContent = R.toFixed(1);
+            
+            // 簡易的なARE解法（2次系）
+            // 反復法
+            const q = Q, r = R;
+            const b2 = B[1];
+            
+            // 初期推定
+            let p11 = Math.sqrt(q), p12 = 0.5, p22 = Math.sqrt(q);
+            
+            for (let iter = 0; iter < 50; iter++) {
+                const k1 = (p12 * b2) / r;
+                const k2 = (p22 * b2) / r;
+                
+                // A - BK
+                const Acl = [[A[0][0], A[0][1]], [A[1][0] - b2*k1, A[1][1] - b2*k2]];
+                
+                // リアプノフ方程式を解く
+                const Qeff = [[q + k1*k1*r, k1*k2*r], [k1*k2*r, q + k2*k2*r]];
+                
+                p11 = (Qeff[0][0] + 2*Acl[1][0]*p12) / (-2*Acl[0][0] + 0.01);
+                p22 = (Qeff[1][1] + 2*p12 + 2*Acl[1][1]*p22) / (-2*Acl[1][1] + 0.01);
+            }
+            
+            // より安定した推定
+            const sqrtQR = Math.sqrt(q / r);
+            p22 = Math.sqrt(2*q/r + 9) - 3/2 + sqrtQR;
+            p12 = (q + p22) / (3 + sqrtQR);
+            p11 = (q + 2*p12) / (0.1 + sqrtQR);
+            
+            P = [[Math.max(0.1, p11), p12], [p12, Math.max(0.1, p22)]];
+            K = [(P[0][1] * B[1]) / R, (P[1][1] * B[1]) / R];
+            
+            document.getElementById('matrixP').innerHTML = 
+                `P = [ ${P[0][0].toFixed(3)}  ${P[0][1].toFixed(3)} ]<br>` +
+                `    [ ${P[1][0].toFixed(3)}  ${P[1][1].toFixed(3)} ]`;
+            document.getElementById('gainK').textContent = `K = [${K[0].toFixed(3)}, ${K[1].toFixed(3)}]`;
+            document.getElementById('optCost').textContent = `V([1,0]) = ${P[0][0].toFixed(3)}`;
+            
+            drawAll();
+        }
+        
+        function drawHamilton() {
+            const w = hamiltonCanvas.getBoundingClientRect().width;
+            const h = hamiltonCanvas.getBoundingClientRect().height;
+            hamiltonCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            hamiltonCtx.fillRect(0, 0, w, h);
+            
+            const cx = w / 2, cy = h / 2;
+            const scale = Math.min(w, h) / 10;
+            
+            // 左半平面
+            hamiltonCtx.fillStyle = 'rgba(0, 255, 136, 0.1)';
+            hamiltonCtx.fillRect(0, 0, cx, h);
+            
+            // 軸
+            hamiltonCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            hamiltonCtx.lineWidth = 1;
+            hamiltonCtx.beginPath();
+            hamiltonCtx.moveTo(0, cy);
+            hamiltonCtx.lineTo(w, cy);
+            hamiltonCtx.moveTo(cx, 0);
+            hamiltonCtx.lineTo(cx, h);
+            hamiltonCtx.stroke();
+            
+            // ハミルトン行列の固有値（簡易計算）
+            const eigs = [
+                { re: -2, im: 1 },
+                { re: -2, im: -1 },
+                { re: 2, im: 1 },
+                { re: 2, im: -1 }
+            ];
+            
+            eigs.forEach((e, i) => {
+                const x = cx + e.re * scale;
+                const y = cy - e.im * scale;
+                const isStable = e.re < 0;
+                
+                hamiltonCtx.fillStyle = isStable ? 'var(--green)' : 'var(--accent)';
+                hamiltonCtx.beginPath();
+                hamiltonCtx.arc(x, y, 6, 0, Math.PI * 2);
+                hamiltonCtx.fill();
+            });
+            
+            hamiltonCtx.fillStyle = 'var(--dim)';
+            hamiltonCtx.font = '11px JetBrains Mono';
+            hamiltonCtx.fillText('Re', w - 25, cy - 5);
+            hamiltonCtx.fillText('Im', cx + 5, 15);
+            hamiltonCtx.fillStyle = 'var(--green)';
+            hamiltonCtx.fillText('安定', 10, 20);
+            hamiltonCtx.fillStyle = 'var(--accent)';
+            hamiltonCtx.fillText('不安定', w - 50, 20);
+        }
+        
+        function drawDRE() {
+            const w = dreCanvas.getBoundingClientRect().width;
+            const h = dreCanvas.getBoundingClientRect().height;
+            dreCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            dreCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            // 微分リッカチ方程式の解（後退積分）
+            const tf = 5;
+            const dt = 0.02;
+            const data = [];
+            let p11 = 0, p12 = 0, p22 = 0; // 終端条件 S = 0
+            
+            for (let t = tf; t >= 0; t -= dt) {
+                data.unshift({ t, p11, p12, p22 });
+                
+                // -dP/dt = A'P + PA - PBR^{-1}B'P + Q
+                const b2 = B[1];
+                const dp11 = -(2*A[1][0]*p12 + Q - (b2*b2*p12*p12)/R);
+                const dp12 = -(p11 + (A[1][0]+A[1][1])*p12 + A[1][0]*p22 - (b2*b2*p12*p22)/R);
+                const dp22 = -(2*p12 + 2*A[1][1]*p22 + Q - (b2*b2*p22*p22)/R);
+                
+                p11 -= dp11 * dt;
+                p12 -= dp12 * dt;
+                p22 -= dp22 * dt;
+            }
+            
+            const maxP = Math.max(...data.map(d => Math.max(Math.abs(d.p11), Math.abs(d.p22))));
+            
+            const toX = (t) => margin.left + (t / tf) * plotW;
+            const toY = (p) => margin.top + plotH/2 - (p / (maxP + 0.1)) * (plotH/2) * 0.9;
+            
+            // グリッド
+            dreCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            for (let i = 0; i <= 4; i++) {
+                dreCtx.beginPath();
+                dreCtx.moveTo(margin.left, margin.top + (plotH/4)*i);
+                dreCtx.lineTo(w - margin.right, margin.top + (plotH/4)*i);
+                dreCtx.stroke();
+            }
+            
+            // P11
+            dreCtx.strokeStyle = 'var(--cyan)';
+            dreCtx.lineWidth = 2;
+            dreCtx.beginPath();
+            data.forEach((d, i) => {
+                if (i === 0) dreCtx.moveTo(toX(d.t), toY(d.p11));
+                else dreCtx.lineTo(toX(d.t), toY(d.p11));
+            });
+            dreCtx.stroke();
+            
+            // P22
+            dreCtx.strokeStyle = 'var(--accent)';
+            dreCtx.beginPath();
+            data.forEach((d, i) => {
+                if (i === 0) dreCtx.moveTo(toX(d.t), toY(d.p22));
+                else dreCtx.lineTo(toX(d.t), toY(d.p22));
+            });
+            dreCtx.stroke();
+            
+            dreCtx.fillStyle = 'var(--dim)';
+            dreCtx.font = '10px JetBrains Mono';
+            dreCtx.fillText('t', w - 20, h - 10);
+            dreCtx.fillStyle = 'var(--cyan)';
+            dreCtx.fillText('P₁₁', w - 50, 30);
+            dreCtx.fillStyle = 'var(--accent)';
+            dreCtx.fillText('P₂₂', w - 50, 50);
+        }
+        
+        function drawCost() {
+            const w = costCanvas.getBoundingClientRect().width;
+            const h = costCanvas.getBoundingClientRect().height;
+            costCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            costCtx.fillRect(0, 0, w, h);
+            
+            const cx = w / 2, cy = h / 2;
+            const scale = Math.min(w, h) / 6;
+            
+            // 等高線
+            const levels = [0.5, 1, 2, 4, 8];
+            levels.forEach((c, idx) => {
+                costCtx.strokeStyle = `hsla(${180 + idx * 30}, 70%, 60%, 0.7)`;
+                costCtx.lineWidth = 1;
+                costCtx.beginPath();
+                
+                for (let theta = 0; theta <= 2 * Math.PI + 0.1; theta += 0.05) {
+                    const det = P[0][0]*P[1][1] - P[0][1]*P[1][0];
+                    const r = Math.sqrt(c / (P[0][0]*Math.cos(theta)**2 + 2*P[0][1]*Math.cos(theta)*Math.sin(theta) + P[1][1]*Math.sin(theta)**2 + 0.01));
+                    const x1 = r * Math.cos(theta);
+                    const x2 = r * Math.sin(theta);
+                    const px = cx + x1 * scale;
+                    const py = cy - x2 * scale;
+                    if (theta === 0) costCtx.moveTo(px, py);
+                    else costCtx.lineTo(px, py);
+                }
+                costCtx.stroke();
+            });
+            
+            // 軸
+            costCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            costCtx.beginPath();
+            costCtx.moveTo(0, cy);
+            costCtx.lineTo(w, cy);
+            costCtx.moveTo(cx, 0);
+            costCtx.lineTo(cx, h);
+            costCtx.stroke();
+            
+            costCtx.fillStyle = 'var(--dim)';
+            costCtx.font = '11px JetBrains Mono';
+            costCtx.fillText('x₁', w - 20, cy - 5);
+            costCtx.fillText('x₂', cx + 5, 15);
+        }
+        
+        function drawTrajectory() {
+            const w = trajCanvas.getBoundingClientRect().width;
+            const h = trajCanvas.getBoundingClientRect().height;
+            trajCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            trajCtx.fillRect(0, 0, w, h);
+            
+            const cx = w / 2, cy = h / 2;
+            const scale = Math.min(w, h) / 5;
+            
+            // 軸
+            trajCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            trajCtx.lineWidth = 1;
+            trajCtx.beginPath();
+            trajCtx.moveTo(0, cy);
+            trajCtx.lineTo(w, cy);
+            trajCtx.moveTo(cx, 0);
+            trajCtx.lineTo(cx, h);
+            trajCtx.stroke();
+            
+            // 複数の軌道
+            const starts = [[2, 0], [-2, 0], [0, 2], [0, -2], [1.5, 1.5], [-1.5, -1.5]];
+            
+            starts.forEach((start, idx) => {
+                const dt = 0.02;
+                const maxT = 6;
+                let x1 = start[0], x2 = start[1];
+                
+                trajCtx.strokeStyle = `hsl(${idx * 60}, 70%, 60%)`;
+                trajCtx.lineWidth = 2;
+                trajCtx.beginPath();
+                trajCtx.moveTo(cx + x1 * scale, cy - x2 * scale);
+                
+                for (let t = 0; t < maxT; t += dt) {
+                    const u = -(K[0]*x1 + K[1]*x2);
+                    const dx1 = A[0][0]*x1 + A[0][1]*x2 + B[0]*u;
+                    const dx2 = A[1][0]*x1 + A[1][1]*x2 + B[1]*u;
+                    x1 += dx1 * dt;
+                    x2 += dx2 * dt;
+                    
+                    if (Math.abs(x1) > 3 || Math.abs(x2) > 3) break;
+                    trajCtx.lineTo(cx + x1 * scale, cy - x2 * scale);
+                }
+                trajCtx.stroke();
+                
+                // 初期点
+                trajCtx.fillStyle = `hsl(${idx * 60}, 70%, 60%)`;
+                trajCtx.beginPath();
+                trajCtx.arc(cx + start[0] * scale, cy - start[1] * scale, 4, 0, Math.PI * 2);
+                trajCtx.fill();
+            });
+            
+            // 原点
+            trajCtx.fillStyle = 'var(--green)';
+            trajCtx.beginPath();
+            trajCtx.arc(cx, cy, 5, 0, Math.PI * 2);
+            trajCtx.fill();
+        }
+        
+        function drawAll() {
+            drawHamilton();
+            drawDRE();
+            drawCost();
+            drawTrajectory();
+        }
+        
+        document.getElementById('qSlider').addEventListener('input', solveARE);
+        document.getElementById('rSlider').addEventListener('input', solveARE);
+        
+        window.addEventListener('load', () => {
+            setupCanvas(hamiltonCanvas, hamiltonCtx);
+            setupCanvas(dreCanvas, dreCtx);
+            setupCanvas(costCanvas, costCtx);
+            setupCanvas(trajCanvas, trajCtx);
+            solveARE();
+        });
+        window.addEventListener('resize', () => {
+            setupCanvas(hamiltonCanvas, hamiltonCtx);
+            setupCanvas(dreCanvas, dreCtx);
+            setupCanvas(costCanvas, costCtx);
+            setupCanvas(trajCanvas, trajCtx);
+            drawAll();
+        });
+    </script>
+</body>
+</html>

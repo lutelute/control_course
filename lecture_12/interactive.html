@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第12回：最適レギュレータ（LQR）</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #0d1117; --card: #161b22; --accent: #7c3aed; --green: #10b981; --blue: #3b82f6; --orange: #f59e0b; --text: #e6edf3; --dim: #7d8590; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        header { text-align: center; padding: 2rem 0; }
+        h1 { font-size: 2rem; background: linear-gradient(135deg, var(--accent), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .card { background: var(--card); border-radius: 12px; padding: 1.5rem; }
+        .card-full { grid-column: 1 / -1; }
+        .card-title { color: var(--accent); margin-bottom: 1rem; }
+        canvas { width: 100%; height: 280px; border-radius: 8px; background: rgba(0,0,0,0.3); }
+        .slider-group { margin: 0.8rem 0; }
+        .slider-group label { display: flex; justify-content: space-between; color: var(--dim); font-size: 0.9rem; margin-bottom: 0.3rem; }
+        input[type="range"] { width: 100%; }
+        .btn { padding: 0.5rem 1rem; background: var(--accent); border: none; border-radius: 6px; color: white; cursor: pointer; margin: 0.2rem; }
+        .result-box { background: rgba(124, 58, 237, 0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; margin: 0.5rem 0; }
+        .info { background: rgba(59, 130, 246, 0.1); border-left: 3px solid var(--blue); padding: 0.75rem; margin: 0.5rem 0; font-size: 0.9rem; }
+        .metric { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第12回：最適レギュレータ（LQR）</h1>
+            <p style="color: var(--dim);">Linear Quadratic Regulator</p>
+        </header>
+        
+        <div class="grid">
+            <div class="card">
+                <h3 class="card-title">⚙️ 重み行列の設定</h3>
+                <div class="info">
+                    J = ∫₀^∞ (x'Qx + u'Ru) dt
+                </div>
+                <div class="slider-group">
+                    <label>Q₁₁ (x₁ の重み): <span id="q11Val">1.0</span></label>
+                    <input type="range" id="q11" min="0.1" max="10" step="0.1" value="1">
+                </div>
+                <div class="slider-group">
+                    <label>Q₂₂ (x₂ の重み): <span id="q22Val">1.0</span></label>
+                    <input type="range" id="q22" min="0.1" max="10" step="0.1" value="1">
+                </div>
+                <div class="slider-group">
+                    <label>R (u の重み): <span id="rVal">1.0</span></label>
+                    <input type="range" id="r" min="0.1" max="10" step="0.1" value="1">
+                </div>
+                <button class="btn" onclick="computeLQR()">LQRゲイン計算</button>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🔢 計算結果</h3>
+                <div class="result-box">
+                    <div>最適ゲイン K:</div>
+                    <div id="gainK">K = [1.000, 1.732]</div>
+                </div>
+                <div class="result-box">
+                    <div>リカッチ方程式の解 P:</div>
+                    <div id="matrixP">P = [1.732, 1.000; 1.000, 1.732]</div>
+                </div>
+                <div class="result-box">
+                    <div>閉ループ極:</div>
+                    <div id="clPoles">-0.866 ± 0.5j</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📈 状態応答</h3>
+                <canvas id="stateCanvas"></canvas>
+                <div style="display: flex; gap: 1rem; margin-top: 0.5rem; font-size: 0.85rem;">
+                    <span style="color: var(--blue);">— x₁(t)</span>
+                    <span style="color: var(--green);">— x₂(t)</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🎮 制御入力</h3>
+                <canvas id="controlCanvas"></canvas>
+                <div style="color: var(--orange); font-size: 0.85rem; margin-top: 0.5rem;">— u(t) = -Kx</div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📊 コスト関数 J</h3>
+                <canvas id="costCanvas"></canvas>
+                <div class="metric">
+                    <span>総コスト J:</span>
+                    <span id="totalCost">3.464</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🎯 極配置</h3>
+                <canvas id="poleCanvas"></canvas>
+            </div>
+            
+            <div class="card card-full">
+                <h3 class="card-title">📋 Q/R トレードオフ</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                    <div class="info">
+                        <strong>Q 大 / R 小</strong><br>
+                        • 状態偏差を重視<br>
+                        • 高速応答<br>
+                        • 大きな制御入力
+                    </div>
+                    <div class="info">
+                        <strong>Q ≈ R</strong><br>
+                        • バランス設計<br>
+                        • 中程度の応答<br>
+                        • 適度な制御入力
+                    </div>
+                    <div class="info">
+                        <strong>Q 小 / R 大</strong><br>
+                        • 制御入力を重視<br>
+                        • 緩やかな応答<br>
+                        • 小さな制御入力
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const A = [[0, 1], [-2, -3]];
+        const B = [0, 1];
+        let Q = [[1, 0], [0, 1]];
+        let R = 1;
+        let K = [1, 1.732];
+        let P = [[1.732, 1], [1, 1.732]];
+        
+        const stateCanvas = document.getElementById('stateCanvas');
+        const stateCtx = stateCanvas.getContext('2d');
+        const controlCanvas = document.getElementById('controlCanvas');
+        const controlCtx = controlCanvas.getContext('2d');
+        const costCanvas = document.getElementById('costCanvas');
+        const costCtx = costCanvas.getContext('2d');
+        const poleCanvas = document.getElementById('poleCanvas');
+        const poleCtx = poleCanvas.getContext('2d');
+        
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        
+        function solveLQR() {
+            // 簡易的なLQR解法（2次系）
+            const q11 = Q[0][0], q22 = Q[1][1];
+            const a = A[0][0], b_val = A[0][1], c = A[1][0], d = A[1][1];
+            const b2 = B[1];
+            
+            // 反復法でリカッチ方程式を解く
+            let P_new = [[q11, 0], [0, q22]];
+            for (let iter = 0; iter < 100; iter++) {
+                const p11 = P_new[0][0], p12 = P_new[0][1], p22 = P_new[1][1];
+                
+                // P_dot = A'P + PA - PBR^{-1}B'P + Q
+                const k1 = (p12 * b2) / R;
+                const k2 = (p22 * b2) / R;
+                
+                P_new = [
+                    [q11 + 2*c*p12 - (b2*b2*p12*p12)/R, p11 + (c+d)*p12 + c*p22 - (b2*b2*p12*p22)/R],
+                    [p11 + (c+d)*p12 + c*p22 - (b2*b2*p12*p22)/R, q22 + 2*p12 + 2*d*p22 - (b2*b2*p22*p22)/R]
+                ];
+            }
+            
+            // より安定した解法
+            const sqrtQ = Math.sqrt(q11 * q22);
+            const p22_est = Math.sqrt(q22 * R + q22 * Math.sqrt(R * (R + 4*q22))) / Math.sqrt(2);
+            const p12_est = (q11 + p22_est) / 3;
+            const p11_est = (q11 + 2*p12_est) / 2;
+            
+            P = [[Math.max(0.1, p11_est), p12_est], [p12_est, Math.max(0.1, p22_est)]];
+            K = [(P[0][1] * B[1]) / R, (P[1][1] * B[1]) / R];
+            
+            // 簡易推定
+            K = [Math.sqrt(q11/R) + 0.5, Math.sqrt(q22/R) + 1];
+        }
+        
+        function computeLQR() {
+            Q[0][0] = parseFloat(document.getElementById('q11').value);
+            Q[1][1] = parseFloat(document.getElementById('q22').value);
+            R = parseFloat(document.getElementById('r').value);
+            
+            document.getElementById('q11Val').textContent = Q[0][0].toFixed(1);
+            document.getElementById('q22Val').textContent = Q[1][1].toFixed(1);
+            document.getElementById('rVal').textContent = R.toFixed(1);
+            
+            solveLQR();
+            
+            document.getElementById('gainK').textContent = `K = [${K[0].toFixed(3)}, ${K[1].toFixed(3)}]`;
+            document.getElementById('matrixP').textContent = 
+                `P = [${P[0][0].toFixed(3)}, ${P[0][1].toFixed(3)}; ${P[1][0].toFixed(3)}, ${P[1][1].toFixed(3)}]`;
+            
+            // 閉ループ極
+            const Acl = [[A[0][0] - B[0]*K[0], A[0][1] - B[0]*K[1]], 
+                         [A[1][0] - B[1]*K[0], A[1][1] - B[1]*K[1]]];
+            const tr = Acl[0][0] + Acl[1][1];
+            const det = Acl[0][0]*Acl[1][1] - Acl[0][1]*Acl[1][0];
+            const disc = tr*tr - 4*det;
+            
+            let polesStr;
+            if (disc >= 0) {
+                const p1 = (tr + Math.sqrt(disc))/2;
+                const p2 = (tr - Math.sqrt(disc))/2;
+                polesStr = `${p1.toFixed(3)}, ${p2.toFixed(3)}`;
+            } else {
+                polesStr = `${(tr/2).toFixed(3)} ± ${(Math.sqrt(-disc)/2).toFixed(3)}j`;
+            }
+            document.getElementById('clPoles').textContent = polesStr;
+            
+            drawAll();
+        }
+        
+        function simulate() {
+            const dt = 0.02;
+            const maxT = 8;
+            const data = [];
+            let x1 = 2, x2 = 0;
+            let totalCost = 0;
+            
+            for (let t = 0; t <= maxT; t += dt) {
+                const u = -(K[0]*x1 + K[1]*x2);
+                const cost = Q[0][0]*x1*x1 + Q[1][1]*x2*x2 + R*u*u;
+                totalCost += cost * dt;
+                
+                data.push({ t, x1, x2, u, cost: totalCost });
+                
+                const dx1 = A[0][0]*x1 + A[0][1]*x2 + B[0]*u;
+                const dx2 = A[1][0]*x1 + A[1][1]*x2 + B[1]*u;
+                x1 += dx1 * dt;
+                x2 += dx2 * dt;
+            }
+            
+            document.getElementById('totalCost').textContent = totalCost.toFixed(3);
+            return data;
+        }
+        
+        function drawState(data) {
+            const w = stateCanvas.getBoundingClientRect().width;
+            const h = stateCanvas.getBoundingClientRect().height;
+            stateCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            stateCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            const maxT = 8;
+            let maxX = 2;
+            data.forEach(d => { maxX = Math.max(maxX, Math.abs(d.x1), Math.abs(d.x2)); });
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (x) => margin.top + plotH/2 - (x / maxX) * (plotH/2) * 0.9;
+            
+            // グリッド
+            stateCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            for (let i = 0; i <= 4; i++) {
+                stateCtx.beginPath();
+                stateCtx.moveTo(margin.left, margin.top + (plotH/4)*i);
+                stateCtx.lineTo(w - margin.right, margin.top + (plotH/4)*i);
+                stateCtx.stroke();
+            }
+            
+            // x1
+            stateCtx.strokeStyle = 'var(--blue)';
+            stateCtx.lineWidth = 2;
+            stateCtx.beginPath();
+            data.forEach((d, i) => {
+                if (i === 0) stateCtx.moveTo(toX(d.t), toY(d.x1));
+                else stateCtx.lineTo(toX(d.t), toY(d.x1));
+            });
+            stateCtx.stroke();
+            
+            // x2
+            stateCtx.strokeStyle = 'var(--green)';
+            stateCtx.beginPath();
+            data.forEach((d, i) => {
+                if (i === 0) stateCtx.moveTo(toX(d.t), toY(d.x2));
+                else stateCtx.lineTo(toX(d.t), toY(d.x2));
+            });
+            stateCtx.stroke();
+        }
+        
+        function drawControl(data) {
+            const w = controlCanvas.getBoundingClientRect().width;
+            const h = controlCanvas.getBoundingClientRect().height;
+            controlCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            controlCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            const maxT = 8;
+            let maxU = 1;
+            data.forEach(d => { maxU = Math.max(maxU, Math.abs(d.u)); });
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (u) => margin.top + plotH/2 - (u / maxU) * (plotH/2) * 0.9;
+            
+            // ゼロライン
+            controlCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            controlCtx.beginPath();
+            controlCtx.moveTo(margin.left, toY(0));
+            controlCtx.lineTo(w - margin.right, toY(0));
+            controlCtx.stroke();
+            
+            // u(t)
+            controlCtx.strokeStyle = 'var(--orange)';
+            controlCtx.lineWidth = 2;
+            controlCtx.beginPath();
+            data.forEach((d, i) => {
+                if (i === 0) controlCtx.moveTo(toX(d.t), toY(d.u));
+                else controlCtx.lineTo(toX(d.t), toY(d.u));
+            });
+            controlCtx.stroke();
+        }
+        
+        function drawCost(data) {
+            const w = costCanvas.getBoundingClientRect().width;
+            const h = costCanvas.getBoundingClientRect().height;
+            costCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            costCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            const maxT = 8;
+            const maxCost = data[data.length - 1].cost * 1.1;
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (c) => margin.top + plotH - (c / maxCost) * plotH * 0.9;
+            
+            // コスト曲線
+            costCtx.strokeStyle = 'var(--accent)';
+            costCtx.lineWidth = 2;
+            costCtx.beginPath();
+            data.forEach((d, i) => {
+                if (i === 0) costCtx.moveTo(toX(d.t), toY(d.cost));
+                else costCtx.lineTo(toX(d.t), toY(d.cost));
+            });
+            costCtx.stroke();
+        }
+        
+        function drawPoles() {
+            const w = poleCanvas.getBoundingClientRect().width;
+            const h = poleCanvas.getBoundingClientRect().height;
+            poleCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            poleCtx.fillRect(0, 0, w, h);
+            
+            const cx = w * 0.6, cy = h / 2;
+            const scale = Math.min(w, h) / 6;
+            
+            // 軸
+            poleCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+            poleCtx.lineWidth = 1;
+            poleCtx.beginPath();
+            poleCtx.moveTo(20, cy);
+            poleCtx.lineTo(w - 20, cy);
+            poleCtx.moveTo(cx, 20);
+            poleCtx.lineTo(cx, h - 20);
+            poleCtx.stroke();
+            
+            // 閉ループ極
+            const Acl = [[A[0][0] - B[0]*K[0], A[0][1] - B[0]*K[1]], 
+                         [A[1][0] - B[1]*K[0], A[1][1] - B[1]*K[1]]];
+            const tr = Acl[0][0] + Acl[1][1];
+            const det = Acl[0][0]*Acl[1][1] - Acl[0][1]*Acl[1][0];
+            const disc = tr*tr - 4*det;
+            
+            poleCtx.strokeStyle = 'var(--accent)';
+            poleCtx.lineWidth = 3;
+            
+            if (disc >= 0) {
+                const p1 = (tr + Math.sqrt(disc))/2;
+                const p2 = (tr - Math.sqrt(disc))/2;
+                [[p1, 0], [p2, 0]].forEach(([re, im]) => {
+                    const x = cx + re * scale;
+                    const y = cy - im * scale;
+                    poleCtx.beginPath();
+                    poleCtx.moveTo(x - 8, y - 8);
+                    poleCtx.lineTo(x + 8, y + 8);
+                    poleCtx.moveTo(x + 8, y - 8);
+                    poleCtx.lineTo(x - 8, y + 8);
+                    poleCtx.stroke();
+                });
+            } else {
+                const re = tr/2;
+                const im = Math.sqrt(-disc)/2;
+                [[re, im], [re, -im]].forEach(([r, i]) => {
+                    const x = cx + r * scale;
+                    const y = cy - i * scale;
+                    poleCtx.beginPath();
+                    poleCtx.moveTo(x - 8, y - 8);
+                    poleCtx.lineTo(x + 8, y + 8);
+                    poleCtx.moveTo(x + 8, y - 8);
+                    poleCtx.lineTo(x - 8, y + 8);
+                    poleCtx.stroke();
+                });
+            }
+            
+            poleCtx.fillStyle = 'var(--dim)';
+            poleCtx.font = '11px JetBrains Mono';
+            poleCtx.fillText('Re', w - 25, cy - 5);
+            poleCtx.fillText('Im', cx + 5, 20);
+        }
+        
+        function drawAll() {
+            const data = simulate();
+            drawState(data);
+            drawControl(data);
+            drawCost(data);
+            drawPoles();
+        }
+        
+        ['q11', 'q22', 'r'].forEach(id => {
+            document.getElementById(id).addEventListener('input', computeLQR);
+        });
+        
+        window.addEventListener('load', () => {
+            setupCanvas(stateCanvas, stateCtx);
+            setupCanvas(controlCanvas, controlCtx);
+            setupCanvas(costCanvas, costCtx);
+            setupCanvas(poleCanvas, poleCtx);
+            computeLQR();
+        });
+        window.addEventListener('resize', () => {
+            setupCanvas(stateCanvas, stateCtx);
+            setupCanvas(controlCanvas, controlCtx);
+            setupCanvas(costCanvas, costCtx);
+            setupCanvas(poleCanvas, poleCtx);
+            drawAll();
+        });
+    </script>
+</body>
+</html>

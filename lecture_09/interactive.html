@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第9回：可観測性</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #0a192f; --card: #112240; --accent: #64ffda; --pink: #f472b6; --blue: #60a5fa; --text: #ccd6f6; --dim: #8892b0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        header { text-align: center; padding: 2rem 0; }
+        h1 { font-size: 2rem; color: var(--accent); }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .card { background: var(--card); border-radius: 12px; padding: 1.5rem; border: 1px solid rgba(100,255,218,0.1); }
+        .card-full { grid-column: 1 / -1; }
+        .card-title { color: var(--accent); margin-bottom: 1rem; }
+        canvas { width: 100%; height: 280px; border-radius: 8px; background: rgba(0,0,0,0.3); }
+        .matrix-input { display: grid; grid-template-columns: repeat(2, 70px); gap: 0.4rem; margin: 0.5rem 0; }
+        .matrix-input input { padding: 0.4rem; background: rgba(255,255,255,0.05); border: 1px solid var(--accent); border-radius: 4px; color: var(--text); text-align: center; font-family: 'JetBrains Mono', monospace; }
+        .row-input { display: flex; gap: 0.4rem; margin: 0.5rem 0; }
+        .row-input input { width: 70px; padding: 0.4rem; background: rgba(255,255,255,0.05); border: 1px solid var(--pink); border-radius: 4px; color: var(--text); text-align: center; font-family: 'JetBrains Mono', monospace; }
+        .btn { padding: 0.5rem 1rem; background: transparent; border: 1px solid var(--accent); border-radius: 6px; color: var(--accent); cursor: pointer; margin: 0.2rem; transition: all 0.3s; }
+        .btn:hover { background: var(--accent); color: var(--bg); }
+        .result-box { background: rgba(100,255,218,0.05); border: 1px solid rgba(100,255,218,0.3); border-radius: 8px; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; margin: 0.5rem 0; }
+        .status { padding: 0.75rem; border-radius: 8px; text-align: center; font-weight: 500; margin: 0.5rem 0; }
+        .observable { background: rgba(100,255,218,0.1); border: 2px solid var(--accent); color: var(--accent); }
+        .not-observable { background: rgba(244,114,182,0.1); border: 2px solid var(--pink); color: var(--pink); }
+        .info { background: rgba(96,165,250,0.1); border-left: 3px solid var(--blue); padding: 0.75rem; margin: 0.5rem 0; font-size: 0.9rem; }
+        .dual-box { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+        .dual-item { background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第9回：可観測性</h1>
+            <p style="color: var(--dim);">Observability of Linear Systems</p>
+        </header>
+        
+        <div class="grid">
+            <div class="card">
+                <h3 class="card-title">📊 システムの設定</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <label style="color: var(--dim);">行列 A (2×2)</label>
+                        <div class="matrix-input">
+                            <input type="number" id="a11" value="0" step="0.5">
+                            <input type="number" id="a12" value="1" step="0.5">
+                            <input type="number" id="a21" value="-2" step="0.5">
+                            <input type="number" id="a22" value="-3" step="0.5">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="color: var(--dim);">行列 C (1×2)</label>
+                        <div class="row-input">
+                            <input type="number" id="c1" value="1" step="0.5">
+                            <input type="number" id="c2" value="0" step="0.5">
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem;">
+                    <button class="btn" onclick="checkObservability()">可観測性を判定</button>
+                    <button class="btn" onclick="setObservable()">可観測な例</button>
+                    <button class="btn" onclick="setNotObservable()">不可観測な例</button>
+                </div>
+                <div id="observabilityStatus" class="status observable">✓ システムは可観測</div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🔢 可観測性行列 O</h3>
+                <div class="info">O = [C; CA; CA²; ...]ᵀ</div>
+                <div class="result-box" id="observeMatrix">
+                    O = [ 1  0 ]
+                        [ 0  1 ]
+                </div>
+                <div class="result-box">
+                    <div>det(O) = <span id="detO">1</span></div>
+                    <div>rank(O) = <span id="rankO">2</span></div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">📈 出力観測</h3>
+                <canvas id="outputCanvas"></canvas>
+                <p style="font-size: 0.85rem; color: var(--dim); margin-top: 0.5rem;">
+                    y(t) = Cx(t): 出力から内部状態を推定
+                </p>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">🔍 状態推定</h3>
+                <canvas id="stateCanvas"></canvas>
+                <p style="font-size: 0.85rem; color: var(--dim); margin-top: 0.5rem;">
+                    可観測なら出力履歴から状態を復元可能
+                </p>
+            </div>
+            
+            <div class="card card-full">
+                <h3 class="card-title">🔄 双対性：可制御性と可観測性</h3>
+                <div class="dual-box">
+                    <div class="dual-item">
+                        <h4 style="color: var(--accent); margin-bottom: 0.5rem;">可制御性</h4>
+                        <div class="result-box">
+                            C = [B | AB]<br>
+                            <span id="controlMatrix">[ 0  1 ]<br>[ 1 -3 ]</span>
+                        </div>
+                        <div id="controlStatus" style="color: var(--accent); margin-top: 0.5rem;">rank = 2 ✓</div>
+                    </div>
+                    <div class="dual-item">
+                        <h4 style="color: var(--pink); margin-bottom: 0.5rem;">可観測性</h4>
+                        <div class="result-box">
+                            O = [C; CA]ᵀ<br>
+                            <span id="observeMatrix2">[ 1  0 ]<br>[ 0  1 ]</span>
+                        </div>
+                        <div id="observeStatus" style="color: var(--accent); margin-top: 0.5rem;">rank = 2 ✓</div>
+                    </div>
+                </div>
+                <div class="info" style="margin-top: 1rem;">
+                    <strong>双対定理:</strong> (A, B)が可制御 ⟺ (Aᵀ, Bᵀ)が可観測<br>
+                    <strong>最小実現:</strong> 可制御かつ可観測なシステム
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let A = [[0, 1], [-2, -3]];
+        let C = [1, 0];
+        let B = [0, 1];
+        
+        const outputCanvas = document.getElementById('outputCanvas');
+        const outputCtx = outputCanvas.getContext('2d');
+        const stateCanvas = document.getElementById('stateCanvas');
+        const stateCtx = stateCanvas.getContext('2d');
+        
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        
+        function getSystem() {
+            A = [
+                [parseFloat(document.getElementById('a11').value), parseFloat(document.getElementById('a12').value)],
+                [parseFloat(document.getElementById('a21').value), parseFloat(document.getElementById('a22').value)]
+            ];
+            C = [parseFloat(document.getElementById('c1').value), parseFloat(document.getElementById('c2').value)];
+        }
+        
+        function checkObservability() {
+            getSystem();
+            
+            // CA を計算
+            const CA = [C[0]*A[0][0] + C[1]*A[1][0], C[0]*A[0][1] + C[1]*A[1][1]];
+            
+            // 可観測性行列 O = [C; CA]^T
+            const O = [[C[0], CA[0]], [C[1], CA[1]]];
+            const detO = O[0][0]*O[1][1] - O[0][1]*O[1][0];
+            const rankO = Math.abs(detO) > 1e-10 ? 2 : 1;
+            
+            document.getElementById('observeMatrix').innerHTML = 
+                `O = [ ${C[0].toFixed(2)}  ${C[1].toFixed(2)} ]<br>` +
+                `    [ ${CA[0].toFixed(2)}  ${CA[1].toFixed(2)} ]`;
+            document.getElementById('observeMatrix2').innerHTML = 
+                `[ ${C[0].toFixed(2)}  ${C[1].toFixed(2)} ]<br>[ ${CA[0].toFixed(2)}  ${CA[1].toFixed(2)} ]`;
+            document.getElementById('detO').textContent = detO.toFixed(4);
+            document.getElementById('rankO').textContent = rankO;
+            
+            const isObservable = rankO === 2;
+            const status = document.getElementById('observabilityStatus');
+            status.className = isObservable ? 'status observable' : 'status not-observable';
+            status.textContent = isObservable ? '✓ システムは可観測' : '✗ システムは不可観測';
+            
+            document.getElementById('observeStatus').textContent = `rank = ${rankO} ${isObservable ? '✓' : '✗'}`;
+            document.getElementById('observeStatus').style.color = isObservable ? 'var(--accent)' : 'var(--pink)';
+            
+            // 可制御性もチェック（B=[0,1]と仮定）
+            const AB = [A[0][0]*B[0] + A[0][1]*B[1], A[1][0]*B[0] + A[1][1]*B[1]];
+            const Cmat = [[B[0], AB[0]], [B[1], AB[1]]];
+            const detC = Cmat[0][0]*Cmat[1][1] - Cmat[0][1]*Cmat[1][0];
+            const rankC = Math.abs(detC) > 1e-10 ? 2 : 1;
+            
+            document.getElementById('controlMatrix').innerHTML = 
+                `[ ${B[0].toFixed(2)}  ${AB[0].toFixed(2)} ]<br>[ ${B[1].toFixed(2)}  ${AB[1].toFixed(2)} ]`;
+            document.getElementById('controlStatus').textContent = `rank = ${rankC} ${rankC === 2 ? '✓' : '✗'}`;
+            document.getElementById('controlStatus').style.color = rankC === 2 ? 'var(--accent)' : 'var(--pink)';
+            
+            drawOutput();
+            drawState();
+        }
+        
+        function drawOutput() {
+            const w = outputCanvas.getBoundingClientRect().width;
+            const h = outputCanvas.getBoundingClientRect().height;
+            outputCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            outputCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            const dt = 0.02;
+            const maxT = 8;
+            const data = [];
+            let x1 = 2, x2 = 1;
+            let maxY = 1;
+            
+            for (let t = 0; t <= maxT; t += dt) {
+                const y = C[0]*x1 + C[1]*x2;
+                data.push({ t, y });
+                maxY = Math.max(maxY, Math.abs(y));
+                
+                const dx1 = A[0][0]*x1 + A[0][1]*x2;
+                const dx2 = A[1][0]*x1 + A[1][1]*x2;
+                x1 += dx1 * dt;
+                x2 += dx2 * dt;
+            }
+            
+            maxY = Math.min(maxY, 10);
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (y) => margin.top + plotH/2 - (y / maxY) * (plotH/2) * 0.9;
+            
+            // グリッド
+            outputCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            for (let i = 0; i <= 4; i++) {
+                const y = margin.top + (plotH / 4) * i;
+                outputCtx.beginPath();
+                outputCtx.moveTo(margin.left, y);
+                outputCtx.lineTo(w - margin.right, y);
+                outputCtx.stroke();
+            }
+            
+            // 出力
+            outputCtx.strokeStyle = 'var(--accent)';
+            outputCtx.lineWidth = 2;
+            outputCtx.beginPath();
+            data.forEach((p, i) => {
+                const y = Math.max(margin.top, Math.min(h - margin.bottom, toY(p.y)));
+                if (i === 0) outputCtx.moveTo(toX(p.t), y);
+                else outputCtx.lineTo(toX(p.t), y);
+            });
+            outputCtx.stroke();
+            
+            // ラベル
+            outputCtx.fillStyle = 'var(--dim)';
+            outputCtx.font = '11px JetBrains Mono';
+            outputCtx.fillText('t [s]', w - 30, h - 10);
+            outputCtx.fillText('y(t)', margin.left, margin.top - 5);
+        }
+        
+        function drawState() {
+            const w = stateCanvas.getBoundingClientRect().width;
+            const h = stateCanvas.getBoundingClientRect().height;
+            stateCtx.fillStyle = 'rgba(0,0,0,0.3)';
+            stateCtx.fillRect(0, 0, w, h);
+            
+            const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            
+            const dt = 0.02;
+            const maxT = 8;
+            const data = [];
+            let x1 = 2, x2 = 1;
+            let maxX = 1;
+            
+            for (let t = 0; t <= maxT; t += dt) {
+                data.push({ t, x1, x2 });
+                maxX = Math.max(maxX, Math.abs(x1), Math.abs(x2));
+                
+                const dx1 = A[0][0]*x1 + A[0][1]*x2;
+                const dx2 = A[1][0]*x1 + A[1][1]*x2;
+                x1 += dx1 * dt;
+                x2 += dx2 * dt;
+            }
+            
+            maxX = Math.min(maxX, 5);
+            
+            const toX = (t) => margin.left + (t / maxT) * plotW;
+            const toY = (x) => margin.top + plotH/2 - (x / maxX) * (plotH/2) * 0.9;
+            
+            // グリッド
+            stateCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            for (let i = 0; i <= 4; i++) {
+                const y = margin.top + (plotH / 4) * i;
+                stateCtx.beginPath();
+                stateCtx.moveTo(margin.left, y);
+                stateCtx.lineTo(w - margin.right, y);
+                stateCtx.stroke();
+            }
+            
+            // x1
+            stateCtx.strokeStyle = 'var(--blue)';
+            stateCtx.lineWidth = 2;
+            stateCtx.beginPath();
+            data.forEach((p, i) => {
+                const y = Math.max(margin.top, Math.min(h - margin.bottom, toY(p.x1)));
+                if (i === 0) stateCtx.moveTo(toX(p.t), y);
+                else stateCtx.lineTo(toX(p.t), y);
+            });
+            stateCtx.stroke();
+            
+            // x2
+            stateCtx.strokeStyle = 'var(--pink)';
+            stateCtx.beginPath();
+            data.forEach((p, i) => {
+                const y = Math.max(margin.top, Math.min(h - margin.bottom, toY(p.x2)));
+                if (i === 0) stateCtx.moveTo(toX(p.t), y);
+                else stateCtx.lineTo(toX(p.t), y);
+            });
+            stateCtx.stroke();
+            
+            // 凡例
+            stateCtx.fillStyle = 'var(--blue)';
+            stateCtx.fillText('x₁', w - 50, 30);
+            stateCtx.fillStyle = 'var(--pink)';
+            stateCtx.fillText('x₂', w - 30, 30);
+        }
+        
+        function setObservable() {
+            document.getElementById('a11').value = 0;
+            document.getElementById('a12').value = 1;
+            document.getElementById('a21').value = -2;
+            document.getElementById('a22').value = -3;
+            document.getElementById('c1').value = 1;
+            document.getElementById('c2').value = 0;
+            checkObservability();
+        }
+        
+        function setNotObservable() {
+            document.getElementById('a11').value = -1;
+            document.getElementById('a12').value = 0;
+            document.getElementById('a21').value = 0;
+            document.getElementById('a22').value = -2;
+            document.getElementById('c1').value = 1;
+            document.getElementById('c2').value = 0;
+            checkObservability();
+        }
+        
+        window.addEventListener('load', () => {
+            setupCanvas(outputCanvas, outputCtx);
+            setupCanvas(stateCanvas, stateCtx);
+            checkObservability();
+        });
+        window.addEventListener('resize', () => {
+            setupCanvas(outputCanvas, outputCtx);
+            setupCanvas(stateCanvas, stateCtx);
+            drawOutput();
+            drawState();
+        });
+    </script>
+</body>
+</html>
