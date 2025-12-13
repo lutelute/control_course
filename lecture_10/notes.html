@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第10回：状態フィードバックと極配置 - 制御工学ノート</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+    <style>
+        :root { 
+            --bg: #0d1117; 
+            --card: #161b22; 
+            --accent: #58a6ff; 
+            --green: #3fb950; 
+            --yellow: #d29922; 
+            --red: #f85149; 
+            --purple: #a371f7; 
+            --text: #c9d1d9; 
+            --dim: #8b949e; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans JP', sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            min-height: 100vh; 
+            line-height: 1.6; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        header { 
+            text-align: center; 
+            padding: 2rem 0; 
+            background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); 
+            border-radius: 16px; 
+            margin-bottom: 1.5rem; 
+        }
+        h1 { 
+            font-size: 2.2rem; 
+            background: linear-gradient(135deg, var(--accent), var(--purple)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 0.5rem; 
+        }
+        .subtitle { color: var(--dim); font-size: 1rem; }
+        
+        .content { display: grid; gap: 1.5rem; }
+        .card { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .card h2 { 
+            color: var(--accent); 
+            margin-bottom: 1rem; 
+            font-size: 1.4rem; 
+            border-bottom: 2px solid var(--accent); 
+            padding-bottom: 0.5rem; 
+        }
+        .card h3 { 
+            color: var(--green); 
+            margin: 1.5rem 0 1rem 0; 
+            font-size: 1.1rem; 
+        }
+        .card h4 { 
+            color: var(--yellow); 
+            margin: 1rem 0 0.5rem 0; 
+            font-size: 1rem; 
+        }
+        
+        ul, ol { margin-left: 1.5rem; margin: 1rem 0 1rem 1.5rem; }
+        li { margin: 0.5rem 0; }
+        
+        p { margin: 0.8rem 0; }
+        strong { color: var(--accent); font-weight: 500; }
+        
+        .math-display {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        .highlight-box { 
+            background: rgba(63,185,80,0.1); 
+            border-left: 3px solid var(--green); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        .warning-box { 
+            background: rgba(248,81,73,0.1); 
+            border-left: 3px solid var(--red); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        
+        @media (max-width: 768px) { 
+            .container { padding: 1rem; }
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第10回：状態フィードバックと極配置</h1>
+            <p class="subtitle">State Feedback and Pole Placement</p>
+        </header>
+        
+        <div class="content">
+            <div class="card">
+                <h2>1. 状態フィードバック制御</h2>
+                <h3>1.1 制御則</h3>
+                <div class="math-display">$$\mathbf{u} = -K\mathbf{x} + \mathbf{r}$$</div>
+                <p>ここで $K$ はフィードバックゲイン行列、$\mathbf{r}$ は参照入力。</p>
+                <h3>1.2 閉ループ系</h3>
+                <p>開ループ系：$\dot{\mathbf{x}} = A\mathbf{x} + B\mathbf{u}$</p>
+                <p>閉ループ系：$\dot{\mathbf{x}} = (A - BK)\mathbf{x} + B\mathbf{r}$</p>
+            </div>
+            <div class="card">
+                <h2>2. 極配置法</h2>
+                <h3>2.1 目的</h3>
+                <p>閉ループ系の極（$A - BK$ の固有値）を望ましい位置に配置。</p>
+                <h3>2.2 極配置の定理</h3>
+                <p><strong>定理：</strong> $(A, B)$ が可制御 ⟺ 任意の極配置が実現可能</p>
+                <h3>2.3 アッカーマンの公式（SISO系）</h3>
+                <p>望ましい特性多項式を $\phi(s) = s^n + p_1 s^{n-1} + \cdots + p_n$ とすると：</p>
+                <div class="math-display">$$K = \begin{bmatrix} 0 & \cdots & 0 & 1 \end{bmatrix} \mathcal{C}^{-1} \phi(A)$$</div>
+                <p>ここで $\mathcal{C}$ は可制御性行列。</p>
+            </div>
+            <div class="card">
+                <h2>3. 2次系の極配置</h2>
+                <h3>3.1 設計例</h3>
+                <div class="math-display">$$A = \begin{bmatrix} 0 & 1 \\ 0 & 0 \end{bmatrix}, \quad B = \begin{bmatrix} 0 \\ 1 \end{bmatrix}$$</div>
+                <p>目標極：$s = -2 \pm j2$</p>
+                <p>目標特性多項式：$(s+2-j2)(s+2+j2) = s^2 + 4s + 8$</p>
+                <h3>3.2 ゲインの計算</h3>
+                <p>$K = \begin{bmatrix} k_1 & k_2 \end{bmatrix}$ とすると：</p>
+                <div class="math-display">$$A - BK = \begin{bmatrix} 0 & 1 \\ -k_1 & -k_2 \end{bmatrix}$$</div>
+                <p>特性方程式：$s^2 + k_2 s + k_1 = s^2 + 4s + 8$</p>
+                <p>よって $k_1 = 8$, $k_2 = 4$</p>
+            </div>
+            <div class="card">
+                <h2>4. 望ましい極の選び方</h2>
+                <h3>4.1 過渡応答の要求仕様</h3>
+                <ul>
+                    <li><strong>減衰比</strong> $\zeta$：オーバーシュートの抑制</li>
+                    <li><strong>固有角周波数</strong> $\omega_n$：応答速度</li>
+                </ul>
+                <h3>4.2 支配極の概念</h3>
+                <p>高速極の影響は相対的に小さいため、支配極で設計。</p>
+                <h3>4.3 実用的な指針</h3>
+                <ul>
+                    <li>整定時間 $t_s \approx 4/\sigma$ を考慮</li>
+                    <li>オーバーシュート許容量から $\zeta$ を決定</li>
+                    <li>アクチュエータの制約を考慮</li>
+            </div>
+            <div class="card">
+                <h2>5. 定常偏差の除去</h2>
+                </ul>
+                <p>状態フィードバックのみでは定常偏差が生じる場合がある。</p>
+                <h3>5.1 積分器の追加</h3>
+                <p>拡大系：</p>
+                <div class="math-display">$$\dot{\mathbf{x}}_a = \begin{bmatrix} A & 0 \\ -C & 0 \end{bmatrix}\mathbf{x}_a + \begin{bmatrix} B \\ 0 \end{bmatrix}\mathbf{u} + \begin{bmatrix} 0 \\ 1 \end{bmatrix}\mathbf{r}$$</div>
+            </div>
+            <div class="card">
+                <h2>6. ロバスト性の考慮</h2>
+                <h3>6.1 ゲイン余裕と位相余裕</h3>
+                <p>極配置だけでは保証されない。</p>
+                <h3>6.2 最適レギュレータとの比較</h3>
+                <p>LQR（次回）では自動的に一定のロバスト性が保証される。</p>
+            </div>
+            <div class="card">
+                <h2>7. まとめ</h2>
+                <ul>
+                    <li>状態フィードバック $\mathbf{u} = -K\mathbf{x}$ で極を任意配置可能（可制御性が必要）</li>
+                    <li>アッカーマンの公式で系統的に $K$ を計算</li>
+                    <li>極の位置は応答仕様から決定</li>
+                    <li>実用上はロバスト性や入力制約も考慮が必要</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+        });
+    </script>
+</body>
+</html>

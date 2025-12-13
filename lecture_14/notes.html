@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第14回：カルマンフィルタ - 制御工学ノート</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+    <style>
+        :root { 
+            --bg: #0d1117; 
+            --card: #161b22; 
+            --accent: #58a6ff; 
+            --green: #3fb950; 
+            --yellow: #d29922; 
+            --red: #f85149; 
+            --purple: #a371f7; 
+            --text: #c9d1d9; 
+            --dim: #8b949e; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans JP', sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            min-height: 100vh; 
+            line-height: 1.6; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        header { 
+            text-align: center; 
+            padding: 2rem 0; 
+            background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); 
+            border-radius: 16px; 
+            margin-bottom: 1.5rem; 
+        }
+        h1 { 
+            font-size: 2.2rem; 
+            background: linear-gradient(135deg, var(--accent), var(--purple)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 0.5rem; 
+        }
+        .subtitle { color: var(--dim); font-size: 1rem; }
+        
+        .content { display: grid; gap: 1.5rem; }
+        .card { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .card h2 { 
+            color: var(--accent); 
+            margin-bottom: 1rem; 
+            font-size: 1.4rem; 
+            border-bottom: 2px solid var(--accent); 
+            padding-bottom: 0.5rem; 
+        }
+        .card h3 { 
+            color: var(--green); 
+            margin: 1.5rem 0 1rem 0; 
+            font-size: 1.1rem; 
+        }
+        .card h4 { 
+            color: var(--yellow); 
+            margin: 1rem 0 0.5rem 0; 
+            font-size: 1rem; 
+        }
+        
+        ul, ol { margin-left: 1.5rem; margin: 1rem 0 1rem 1.5rem; }
+        li { margin: 0.5rem 0; }
+        
+        p { margin: 0.8rem 0; }
+        strong { color: var(--accent); font-weight: 500; }
+        
+        .math-display {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        .highlight-box { 
+            background: rgba(63,185,80,0.1); 
+            border-left: 3px solid var(--green); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        .warning-box { 
+            background: rgba(248,81,73,0.1); 
+            border-left: 3px solid var(--red); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        
+        @media (max-width: 768px) { 
+            .container { padding: 1rem; }
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第14回：カルマンフィルタ</h1>
+            <p class="subtitle">Kalman Filter</p>
+        </header>
+        
+        <div class="content">
+            <div class="card">
+                <h2>1. 状態推定問題</h2>
+                <h3>1.1 確率的システムモデル</h3>
+                <div class="math-display">$$\dot{\mathbf{x}} = A\mathbf{x} + B\mathbf{u} + G\mathbf{w}$$</div>
+                <div class="math-display">$$\mathbf{y} = C\mathbf{x} + \mathbf{v}$$</div>
+                <p>ここで：</p>
+                <ul>
+                    <li>$\mathbf{w}$：プロセスノイズ（共分散 $Q_w$）</li>
+                    <li>$\mathbf{v}$：観測ノイズ（共分散 $R_v$）</li>
+                    <li>$\mathbf{w}, \mathbf{v}$ は白色ガウスノイズ</li>
+                </ul>
+                <h3>1.2 推定の目的</h3>
+                <p>観測 $\mathbf{y}(t)$ から状態 $\mathbf{x}(t)$ の最適推定値 $\hat{\mathbf{x}}(t)$ を求める</p>
+            </div>
+            <div class="card">
+                <h2>2. カルマンフィルタの構造</h2>
+                <h3>2.1 連続時間カルマンフィルタ</h3>
+                <div class="math-display">$$\dot{\hat{\mathbf{x}}} = A\hat{\mathbf{x}} + B\mathbf{u} + L(\mathbf{y} - C\hat{\mathbf{x}})$$</div>
+                <ul>
+                    <li>$\hat{\mathbf{x}}$：状態推定値</li>
+                    <li>$L$：カルマンゲイン（オブザーバゲイン）</li>
+                    <li>$\mathbf{y} - C\hat{\mathbf{x}}$：イノベーション（推定誤差）</li>
+                </ul>
+                <h3>2.2 最適カルマンゲイン</h3>
+                <div class="math-display">$$L = PC^T R_v^{-1}$$</div>
+                <p>$P$ は推定誤差共分散：$P = E[(\mathbf{x} - \hat{\mathbf{x}})(\mathbf{x} - \hat{\mathbf{x}})^T]$</p>
+            </div>
+            <div class="card">
+                <h2>3. フィルタリカッチ方程式</h2>
+                <h3>3.1 共分散の時間発展</h3>
+                <div class="math-display">$$\dot{P} = AP + PA^T - PC^T R_v^{-1} CP + GQ_w G^T$$</div>
+                <h3>3.2 定常カルマンフィルタ</h3>
+                <p>$t \to \infty$ で $P$ は代数リカッチ方程式の解に収束：</p>
+                <div class="math-display">$$AP + PA^T - PC^T R_v^{-1} CP + GQ_w G^T = 0$$</div>
+            </div>
+            <div class="card">
+                <h2>4. LQR との双対性</h2>
+                <h3>4.1 双対関係</h3>
+                <p>| LQR | カルマンフィルタ |</p>
+                <p>|-----|--------------|</p>
+                <p>| $A$ | $A^T$ |</p>
+                <p>| $B$ | $C^T$ |</p>
+                <p>| $Q$ | $GQ_w G^T$ |</p>
+                <p>| $R$ | $R_v$ |</p>
+                <p>| $K$ | $L^T$ |</p>
+                <h3>4.2 分離定理</h3>
+                <p>LQG（線形2次ガウス）問題において：</p>
+                <ul>
+                    <li>最適制御器（LQR）と最適推定器（カルマンフィルタ）は独立に設計可能</li>
+                    <li>全体の最適性が保証される</li>
+            </div>
+            <div class="card">
+                <h2>5. 離散時間カルマンフィルタ</h2>
+                </ul>
+                <h3>5.1 システムモデル</h3>
+                <div class="math-display">$$\mathbf{x}_{k+1} = A_d \mathbf{x}_k + B_d \mathbf{u}_k + \mathbf{w}_k$$</div>
+                <div class="math-display">$$\mathbf{y}_k = C\mathbf{x}_k + \mathbf{v}_k$$</div>
+                <h3>5.2 予測ステップ</h3>
+                <div class="math-display">$$\hat{\mathbf{x}}_{k|k-1} = A_d \hat{\mathbf{x}}_{k-1|k-1} + B_d \mathbf{u}_{k-1}$$</div>
+                <div class="math-display">$$P_{k|k-1} = A_d P_{k-1|k-1} A_d^T + Q_w$$</div>
+                <h3>5.3 更新ステップ</h3>
+                <div class="math-display">$$L_k = P_{k|k-1} C^T (CP_{k|k-1}C^T + R_v)^{-1}$$</div>
+                <div class="math-display">$$\hat{\mathbf{x}}_{k|k} = \hat{\mathbf{x}}_{k|k-1} + L_k(\mathbf{y}_k - C\hat{\mathbf{x}}_{k|k-1})$$</div>
+                <div class="math-display">$$P_{k|k} = (I - L_k C)P_{k|k-1}$$</div>
+            </div>
+            <div class="card">
+                <h2>6. 拡張カルマンフィルタ（EKF）</h2>
+                <p>非線形システムへの拡張：</p>
+                <ul>
+                    <li>ヤコビアンによる線形化</li>
+                    <li>各時刻で線形カルマンフィルタを適用</li>
+            </div>
+            <div class="card">
+                <h2>7. カルマンフィルタの性質</h2>
+                </ul>
+                <h3>7.1 最適性</h3>
+                <ul>
+                    <li>線形システム + ガウスノイズ → 最小分散推定</li>
+                    <li>MMSE（最小平均二乗誤差）推定</li>
+                </ul>
+                <h3>7.2 収束性</h3>
+                <p>$(A, C)$ が可観測ならば、初期推定誤差は減少</p>
+            </div>
+            <div class="card">
+                <h2>8. まとめ</h2>
+                <ul>
+                    <li>カルマンフィルタは確率的状態推定の最適解</li>
+                    <li>LQR と双対関係（フィルタリカッチ方程式）</li>
+                    <li>離散時間では予測・更新の2ステップ</li>
+                    <li>LQG 制御では分離定理が成立</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+        });
+    </script>
+</body>
+</html>

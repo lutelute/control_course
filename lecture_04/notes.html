@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第4回：遷移行列の計算 - 制御工学ノート</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+    <style>
+        :root { 
+            --bg: #0d1117; 
+            --card: #161b22; 
+            --accent: #58a6ff; 
+            --green: #3fb950; 
+            --yellow: #d29922; 
+            --red: #f85149; 
+            --purple: #a371f7; 
+            --text: #c9d1d9; 
+            --dim: #8b949e; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans JP', sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            min-height: 100vh; 
+            line-height: 1.6; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        header { 
+            text-align: center; 
+            padding: 2rem 0; 
+            background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); 
+            border-radius: 16px; 
+            margin-bottom: 1.5rem; 
+        }
+        h1 { 
+            font-size: 2.2rem; 
+            background: linear-gradient(135deg, var(--accent), var(--purple)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 0.5rem; 
+        }
+        .subtitle { color: var(--dim); font-size: 1rem; }
+        
+        .content { display: grid; gap: 1.5rem; }
+        .card { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .card h2 { 
+            color: var(--accent); 
+            margin-bottom: 1rem; 
+            font-size: 1.4rem; 
+            border-bottom: 2px solid var(--accent); 
+            padding-bottom: 0.5rem; 
+        }
+        .card h3 { 
+            color: var(--green); 
+            margin: 1.5rem 0 1rem 0; 
+            font-size: 1.1rem; 
+        }
+        .card h4 { 
+            color: var(--yellow); 
+            margin: 1rem 0 0.5rem 0; 
+            font-size: 1rem; 
+        }
+        
+        ul, ol { margin-left: 1.5rem; margin: 1rem 0 1rem 1.5rem; }
+        li { margin: 0.5rem 0; }
+        
+        p { margin: 0.8rem 0; }
+        strong { color: var(--accent); font-weight: 500; }
+        
+        .math-display {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        .highlight-box { 
+            background: rgba(63,185,80,0.1); 
+            border-left: 3px solid var(--green); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        .warning-box { 
+            background: rgba(248,81,73,0.1); 
+            border-left: 3px solid var(--red); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        
+        @media (max-width: 768px) { 
+            .container { padding: 1rem; }
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第4回：遷移行列の計算</h1>
+            <p class="subtitle">Calculation of Transition Matrix</p>
+        </header>
+        
+        <div class="content">
+            <div class="card">
+                <h2>1. 遷移行列の計算法</h2>
+                <p>行列指数関数 $e^{At}$ を計算する方法は複数あります。</p>
+            </div>
+            <div class="card">
+                <h2>2. ラプラス変換による方法</h2>
+                <h3>2.1 基本公式</h3>
+                <div class="math-display">$$e^{At} = \mathcal{L}^{-1}\{(sI - A)^{-1}\}$$</div>
+                <p><strong>導出：</strong> 状態方程式 $\dot{\mathbf{x}} = A\mathbf{x}$ のラプラス変換：</p>
+                <div class="math-display">$$sX(s) - \mathbf{x}_0 = AX(s)$$</div>
+                <div class="math-display">$$(sI - A)X(s) = \mathbf{x}_0$$</div>
+                <div class="math-display">$$X(s) = (sI - A)^{-1}\mathbf{x}_0$$</div>
+                <p>逆変換して $\mathbf{x}(t) = e^{At}\mathbf{x}_0$ と比較。</p>
+                <h3>2.2 計算手順</h3>
+                <ol>
+                    <li>$sI - A$ を計算</li>
+                    <li>$(sI - A)^{-1}$ を求める（余因子行列と行列式を使用）</li>
+                    <li>各要素を逆ラプラス変換</li>
+                </ol>
+                <h3>2.3 例：2次系</h3>
+                <div class="math-display">$$A = \begin{bmatrix} 0 & 1 \\ -6 & -5 \end{bmatrix}$$</div>
+                <div class="math-display">$$sI - A = \begin{bmatrix} s & -1 \\ 6 & s+5 \end{bmatrix}$$</div>
+                <div class="math-display">$$\det(sI - A) = s(s+5) + 6 = s^2 + 5s + 6 = (s+2)(s+3)$$</div>
+                <div class="math-display">$$(sI - A)^{-1} = \frac{1}{(s+2)(s+3)}\begin{bmatrix} s+5 & 1 \\ -6 & s \end{bmatrix}$$</div>
+                <p>部分分数展開と逆変換で $e^{At}$ を得る。</p>
+            </div>
+            <div class="card">
+                <h2>3. 対角化による方法</h2>
+                <h3>3.1 対角化可能な場合</h3>
+                <p>$A$ が対角化可能で $A = PDP^{-1}$（$D$ は固有値の対角行列）のとき：</p>
+                <div class="math-display">$$e^{At} = Pe^{Dt}P^{-1}$$</div>
+                <div class="math-display">$$e^{Dt} = \begin{bmatrix} e^{\lambda_1 t} & 0 & \cdots \\ 0 & e^{\lambda_2 t} & \cdots \\ \vdots & & \ddots \end{bmatrix}$$</div>
+                <h3>3.2 計算手順</h3>
+                <ol>
+                    <li>固有値 $\lambda_1, \lambda_2, \ldots$ を求める</li>
+                    <li>対応する固有ベクトルから $P$ を構成</li>
+                    <li>$e^{Dt}$ を計算</li>
+                    <li>$e^{At} = Pe^{Dt}P^{-1}$</li>
+                </ol>
+                <h3>3.3 複素固有値の場合</h3>
+                <p>$\lambda = \alpha \pm j\omega$ のとき、実数形式で：</p>
+                <div class="math-display">$$e^{\alpha t}\begin{bmatrix} \cos\omega t & \sin\omega t \\ -\sin\omega t & \cos\omega t \end{bmatrix}$$</div>
+            </div>
+            <div class="card">
+                <h2>4. ケーリー・ハミルトンの定理を用いた方法</h2>
+                <h3>4.1 定理</h3>
+                <p>任意の正方行列 $A$ は自身の特性方程式を満たす：</p>
+                <div class="math-display">$$\chi_A(A) = A^n + a_{n-1}A^{n-1} + \cdots + a_1A + a_0I = 0$$</div>
+                <h3>4.2 応用</h3>
+                <p>$e^{At}$ は $A$ の $n-1$ 次以下の多項式で表現可能：</p>
+                <div class="math-display">$$e^{At} = \alpha_0(t)I + \alpha_1(t)A + \cdots + \alpha_{n-1}(t)A^{n-1}$$</div>
+                <p>係数 $\alpha_i(t)$ は固有値から決定される連立方程式を解いて求める。</p>
+                <h3>4.3 2次系の場合</h3>
+                <div class="math-display">$$e^{At} = \alpha_0(t)I + \alpha_1(t)A$$</div>
+                <p>相異なる固有値 $\lambda_1, \lambda_2$ の場合：</p>
+                <div class="math-display">$$\begin{cases} e^{\lambda_1 t} = \alpha_0 + \alpha_1 \lambda_1 \\ e^{\lambda_2 t} = \alpha_0 + \alpha_1 \lambda_2 \end{cases}$$</div>
+                <p>解いて：</p>
+                <div class="math-display">$$\alpha_0 = \frac{\lambda_1 e^{\lambda_2 t} - \lambda_2 e^{\lambda_1 t}}{\lambda_1 - \lambda_2}, \quad \alpha_1 = \frac{e^{\lambda_1 t} - e^{\lambda_2 t}}{\lambda_1 - \lambda_2}$$</div>
+            </div>
+            <div class="card">
+                <h2>5. 級数展開による数値計算</h2>
+                <h3>5.1 定義式の直接計算</h3>
+                <div class="math-display">$$e^{At} = \sum_{k=0}^{N} \frac{(At)^k}{k!}$$</div>
+                <p>$N$ を十分大きくとれば近似精度が向上。</p>
+                <h3>5.2 パデ近似</h3>
+                <p>より効率的な数値計算法：</p>
+                <div class="math-display">$$e^{At} \approx [N_m(At)][D_m(At)]^{-1}$$</div>
+                <p>多くの数値計算ライブラリで採用。</p>
+            </div>
+            <div class="card">
+                <h2>6. シルベスターの公式</h2>
+                <p>相異なる固有値 $\lambda_1, \ldots, \lambda_n$ をもつ場合：</p>
+                <div class="math-display">$$e^{At} = \sum_{i=1}^{n} e^{\lambda_i t} \prod_{j \neq i} \frac{A - \lambda_j I}{\lambda_i - \lambda_j}$$</div>
+            </div>
+            <div class="card">
+                <h2>7. まとめ</h2>
+                <p>| 方法 | 利点 | 欠点 |</p>
+                <p>|-----|-----|-----|</p>
+                <p>| ラプラス変換 | 直接的 | 手計算が煩雑 |</p>
+                <p>| 対角化 | 見通しが良い | 対角化不可能な場合あり |</p>
+                <p>| ケーリー・ハミルトン | 任意の行列に適用可 | 重根で場合分け |</p>
+                <p>| 級数展開 | 数値計算向き | 収束に注意 |</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+        });
+    </script>
+</body>
+</html>

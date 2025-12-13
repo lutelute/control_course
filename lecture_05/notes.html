@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第5回：伝達関数と状態空間表現 - 制御工学ノート</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+    <style>
+        :root { 
+            --bg: #0d1117; 
+            --card: #161b22; 
+            --accent: #58a6ff; 
+            --green: #3fb950; 
+            --yellow: #d29922; 
+            --red: #f85149; 
+            --purple: #a371f7; 
+            --text: #c9d1d9; 
+            --dim: #8b949e; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans JP', sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            min-height: 100vh; 
+            line-height: 1.6; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        header { 
+            text-align: center; 
+            padding: 2rem 0; 
+            background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); 
+            border-radius: 16px; 
+            margin-bottom: 1.5rem; 
+        }
+        h1 { 
+            font-size: 2.2rem; 
+            background: linear-gradient(135deg, var(--accent), var(--purple)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 0.5rem; 
+        }
+        .subtitle { color: var(--dim); font-size: 1rem; }
+        
+        .content { display: grid; gap: 1.5rem; }
+        .card { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .card h2 { 
+            color: var(--accent); 
+            margin-bottom: 1rem; 
+            font-size: 1.4rem; 
+            border-bottom: 2px solid var(--accent); 
+            padding-bottom: 0.5rem; 
+        }
+        .card h3 { 
+            color: var(--green); 
+            margin: 1.5rem 0 1rem 0; 
+            font-size: 1.1rem; 
+        }
+        .card h4 { 
+            color: var(--yellow); 
+            margin: 1rem 0 0.5rem 0; 
+            font-size: 1rem; 
+        }
+        
+        ul, ol { margin-left: 1.5rem; margin: 1rem 0 1rem 1.5rem; }
+        li { margin: 0.5rem 0; }
+        
+        p { margin: 0.8rem 0; }
+        strong { color: var(--accent); font-weight: 500; }
+        
+        .math-display {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        .highlight-box { 
+            background: rgba(63,185,80,0.1); 
+            border-left: 3px solid var(--green); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        .warning-box { 
+            background: rgba(248,81,73,0.1); 
+            border-left: 3px solid var(--red); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        
+        @media (max-width: 768px) { 
+            .container { padding: 1rem; }
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第5回：伝達関数と状態空間表現</h1>
+            <p class="subtitle">Transfer Function and State Space Representation</p>
+        </header>
+        
+        <div class="content">
+            <div class="card">
+                <h2>1. 伝達関数の定義</h2>
+                <h3>1.1 SISO（単入力単出力）システム</h3>
+                <p>初期値ゼロの条件下で、入力 $U(s)$ と出力 $Y(s)$ のラプラス変換の比：</p>
+                <div class="math-display">$$G(s) = \frac{Y(s)}{U(s)}$$</div>
+                <h3>1.2 状態空間表現からの導出</h3>
+                <p>状態方程式：</p>
+                <div class="math-display">$$\dot{\mathbf{x}} = A\mathbf{x} + B\mathbf{u}$$</div>
+                <div class="math-display">$$\mathbf{y} = C\mathbf{x} + D\mathbf{u}$$</div>
+                <p>ラプラス変換（初期値ゼロ）：</p>
+                <div class="math-display">$$sX(s) = AX(s) + BU(s)$$</div>
+                <div class="math-display">$$Y(s) = CX(s) + DU(s)$$</div>
+                <p>$X(s)$ を消去：</p>
+                <div class="math-display">$$X(s) = (sI - A)^{-1}BU(s)$$</div>
+                <div class="math-display">$$Y(s) = [C(sI - A)^{-1}B + D]U(s)$$</div>
+                <p>したがって：</p>
+                <div class="math-display">$$G(s) = C(sI - A)^{-1}B + D$$</div>
+            </div>
+            <div class="card">
+                <h2>2. 伝達関数の性質</h2>
+                <h3>2.1 極と固有値</h3>
+                <p>伝達関数の <strong>極</strong>（分母の根）は、行列 $A$ の <strong>固有値</strong> に一致します。</p>
+                <div class="math-display">$$\det(sI - A) = 0 \quad \Rightarrow \quad s = \lambda_i$$</div>
+                <h3>2.2 可約な極零相殺</h3>
+                <p>状態空間表現の固有値がすべて伝達関数の極として現れるとは限りません。</p>
+                <p><strong>可制御でない</strong> または <strong>可観測でない</strong> モードは相殺されます。</p>
+            </div>
+            <div class="card">
+                <h2>3. 状態空間表現から伝達関数への変換</h2>
+                <h3>3.1 公式</h3>
+                <div class="math-display">$$G(s) = C(sI - A)^{-1}B + D = C \cdot \frac{\text{adj}(sI-A)}{\det(sI-A)} \cdot B + D$$</div>
+                <h3>3.2 計算例</h3>
+                <div class="math-display">$$A = \begin{bmatrix} 0 & 1 \\ -2 & -3 \end{bmatrix}, \quad B = \begin{bmatrix} 0 \\ 1 \end{bmatrix}, \quad C = \begin{bmatrix} 1 & 0 \end{bmatrix}, \quad D = 0$$</div>
+                <div class="math-display">$$sI - A = \begin{bmatrix} s & -1 \\ 2 & s+3 \end{bmatrix}$$</div>
+                <div class="math-display">$$\det(sI-A) = s^2 + 3s + 2 = (s+1)(s+2)$$</div>
+                <div class="math-display">$$(sI-A)^{-1} = \frac{1}{(s+1)(s+2)}\begin{bmatrix} s+3 & 1 \\ -2 & s \end{bmatrix}$$</div>
+                <div class="math-display">$$G(s) = \frac{1}{(s+1)(s+2)}\begin{bmatrix} 1 & 0 \end{bmatrix}\begin{bmatrix} s+3 & 1 \\ -2 & s \end{bmatrix}\begin{bmatrix} 0 \\ 1 \end{bmatrix} = \frac{1}{(s+1)(s+2)}$$</div>
+            </div>
+            <div class="card">
+                <h2>4. 伝達関数から状態空間表現への変換</h2>
+                <h3>4.1 可制御正準形</h3>
+                <div class="math-display">$$G(s) = \frac{b_1s^{n-1} + \cdots + b_n}{s^n + a_1s^{n-1} + \cdots + a_n}$$</div>
+                <div class="math-display">$$A_c = \begin{bmatrix} 0 & 1 & 0 & \cdots & 0 \\ 0 & 0 & 1 & \cdots & 0 \\ \vdots & & & \ddots & \vdots \\ 0 & 0 & 0 & \cdots & 1 \\ -a_n & -a_{n-1} & -a_{n-2} & \cdots & -a_1 \end{bmatrix}$$</div>
+                <div class="math-display">$$B_c = \begin{bmatrix} 0 \\ 0 \\ \vdots \\ 0 \\ 1 \end{bmatrix}, \quad C_c = \begin{bmatrix} b_n & b_{n-1} & \cdots & b_1 \end{bmatrix}$$</div>
+                <h3>4.2 可観測正準形</h3>
+                <div class="math-display">$$A_o = A_c^T, \quad B_o = C_c^T, \quad C_o = B_c^T$$</div>
+                <h3>4.3 対角正準形</h3>
+                <p>相異なる極 $p_1, p_2, \ldots, p_n$ の場合、部分分数展開：</p>
+                <div class="math-display">$$G(s) = \frac{r_1}{s - p_1} + \frac{r_2}{s - p_2} + \cdots + \frac{r_n}{s - p_n}$$</div>
+                <div class="math-display">$$A_d = \begin{bmatrix} p_1 & & \\ & p_2 & \\ & & \ddots \end{bmatrix}, \quad B_d = \begin{bmatrix} 1 \\ 1 \\ \vdots \end{bmatrix}, \quad C_d = \begin{bmatrix} r_1 & r_2 & \cdots \end{bmatrix}$$</div>
+            </div>
+            <div class="card">
+                <h2>5. 実現の等価性</h2>
+                <h3>5.1 等価な実現</h3>
+                <p>同じ伝達関数を持つ状態空間表現は無数に存在します。</p>
+                <p>座標変換 $\tilde{\mathbf{x}} = T\mathbf{x}$ による等価な実現：</p>
+                <div class="math-display">$$\tilde{A} = TAT^{-1}, \quad \tilde{B} = TB, \quad \tilde{C} = CT^{-1}, \quad \tilde{D} = D$$</div>
+                <h3>5.2 最小実現</h3>
+                <p>状態の次元が最小となる実現を <strong>最小実現</strong> と呼びます。</p>
+                <ul>
+                    <li>可制御かつ可観測</li>
+                    <li>状態の次元 = 伝達関数の次数（McMillan次数）</li>
+            </div>
+            <div class="card">
+                <h2>6. MIMO システム</h2>
+                </ul>
+                <p>多入力多出力システムの伝達関数行列：</p>
+                <div class="math-display">$$G(s) = C(sI - A)^{-1}B + D \in \mathbb{R}^{p \times m}$$</div>
+                <p>各要素 $G_{ij}(s)$ は入力 $j$ から出力 $i$ への伝達関数。</p>
+            </div>
+            <div class="card">
+                <h2>7. まとめ</h2>
+                <ul>
+                    <li>伝達関数は $G(s) = C(sI-A)^{-1}B + D$ で計算</li>
+                    <li>極は行列 $A$ の固有値に対応</li>
+                    <li>正準形を使って伝達関数から状態空間表現を構成</li>
+                    <li>等価な実現は無数に存在するが、最小実現は一意（座標変換を除く）</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+        });
+    </script>
+</body>
+</html>

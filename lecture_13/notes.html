@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第13回：リッカチ方程式 - 制御工学ノート</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+    <style>
+        :root { 
+            --bg: #0d1117; 
+            --card: #161b22; 
+            --accent: #58a6ff; 
+            --green: #3fb950; 
+            --yellow: #d29922; 
+            --red: #f85149; 
+            --purple: #a371f7; 
+            --text: #c9d1d9; 
+            --dim: #8b949e; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans JP', sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            min-height: 100vh; 
+            line-height: 1.6; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        header { 
+            text-align: center; 
+            padding: 2rem 0; 
+            background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); 
+            border-radius: 16px; 
+            margin-bottom: 1.5rem; 
+        }
+        h1 { 
+            font-size: 2.2rem; 
+            background: linear-gradient(135deg, var(--accent), var(--purple)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 0.5rem; 
+        }
+        .subtitle { color: var(--dim); font-size: 1rem; }
+        
+        .content { display: grid; gap: 1.5rem; }
+        .card { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .card h2 { 
+            color: var(--accent); 
+            margin-bottom: 1rem; 
+            font-size: 1.4rem; 
+            border-bottom: 2px solid var(--accent); 
+            padding-bottom: 0.5rem; 
+        }
+        .card h3 { 
+            color: var(--green); 
+            margin: 1.5rem 0 1rem 0; 
+            font-size: 1.1rem; 
+        }
+        .card h4 { 
+            color: var(--yellow); 
+            margin: 1rem 0 0.5rem 0; 
+            font-size: 1rem; 
+        }
+        
+        ul, ol { margin-left: 1.5rem; margin: 1rem 0 1rem 1.5rem; }
+        li { margin: 0.5rem 0; }
+        
+        p { margin: 0.8rem 0; }
+        strong { color: var(--accent); font-weight: 500; }
+        
+        .math-display {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        .highlight-box { 
+            background: rgba(63,185,80,0.1); 
+            border-left: 3px solid var(--green); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        .warning-box { 
+            background: rgba(248,81,73,0.1); 
+            border-left: 3px solid var(--red); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        
+        @media (max-width: 768px) { 
+            .container { padding: 1rem; }
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第13回：リッカチ方程式</h1>
+            <p class="subtitle">Riccati Equation</p>
+        </header>
+        
+        <div class="content">
+            <div class="card">
+                <h2>1. 最適制御問題の定式化</h2>
+                <h3>1.1 無限時間レギュレータ問題</h3>
+                <div class="math-display">$$\min_{\mathbf{u}} J = \int_0^\infty (\mathbf{x}^T Q \mathbf{x} + \mathbf{u}^T R \mathbf{u}) dt$$</div>
+                <p>制約：$\dot{\mathbf{x}} = A\mathbf{x} + B\mathbf{u}$</p>
+                <h3>1.2 有限時間レギュレータ問題</h3>
+                <div class="math-display">$$\min_{\mathbf{u}} J = \mathbf{x}^T(t_f) S \mathbf{x}(t_f) + \int_0^{t_f} (\mathbf{x}^T Q \mathbf{x} + \mathbf{u}^T R \mathbf{u}) dt$$</div>
+            </div>
+            <div class="card">
+                <h2>2. 代数リッカチ方程式（ARE）</h2>
+                <h3>2.1 定常問題の解</h3>
+                <p>無限時間問題では、最適コストは $V(\mathbf{x}) = \mathbf{x}^T P \mathbf{x}$ の形。</p>
+                <p>$P$ は <strong>代数リッカチ方程式</strong> を満たす：</p>
+                <div class="math-display">$$A^T P + PA - PBR^{-1}B^T P + Q = 0$$</div>
+                <h3>2.2 最適ゲイン</h3>
+                <div class="math-display">$$K = R^{-1}B^T P$$</div>
+                <p>最適制御則：$\mathbf{u}^* = -K\mathbf{x}$</p>
+                <h3>2.3 解の存在条件</h3>
+                <p>$(A, B)$ が可安定、$(A, Q^{1/2})$ が可検出ならば、</p>
+                <p>ARE は唯一の正定値解 $P \geq 0$ を持つ。</p>
+            </div>
+            <div class="card">
+                <h2>3. 微分リッカチ方程式（DRE）</h2>
+                <h3>3.1 有限時間問題</h3>
+                <p>時変ゲイン $K(t) = R^{-1}B^T P(t)$ を使用。</p>
+                <p>$P(t)$ は微分リッカチ方程式を満たす：</p>
+                <div class="math-display">$$-\dot{P} = A^T P + PA - PBR^{-1}B^T P + Q$$</div>
+                <p>終端条件：$P(t_f) = S$</p>
+                <h3>3.2 後退積分</h3>
+                <p>$t = t_f$ から $t = 0$ へ向かって積分。</p>
+            </div>
+            <div class="card">
+                <h2>4. ハミルトン行列による解法</h2>
+                <h3>4.1 ハミルトン行列</h3>
+                <div class="math-display">$$H = \begin{bmatrix} A & -BR^{-1}B^T \\ -Q & -A^T \end{bmatrix}$$</div>
+                <h3>4.2 安定固有空間</h3>
+                <p>$H$ の安定固有値に対応する固有空間から $P$ を計算：</p>
+                <div class="math-display">$$\begin{bmatrix} X_1 \\ X_2 \end{bmatrix} \text{ が安定固有空間} \Rightarrow P = X_2 X_1^{-1}$$</div>
+            </div>
+            <div class="card">
+                <h2>5. 最適性の検証</h2>
+                <h3>5.1 ハミルトン・ヤコビ・ベルマン方程式</h3>
+                <p>最適コスト関数 $V(\mathbf{x})$ は HJB 方程式を満たす：</p>
+                <div class="math-display">$$\min_{\mathbf{u}} \left[ \mathbf{x}^T Q \mathbf{x} + \mathbf{u}^T R \mathbf{u} + \frac{\partial V}{\partial \mathbf{x}}(A\mathbf{x} + B\mathbf{u}) \right] = 0$$</div>
+                <h3>5.2 最適制御の導出</h3>
+                <div class="math-display">$$\mathbf{u}^* = -\frac{1}{2}R^{-1}B^T \frac{\partial V}{\partial \mathbf{x}}^T = -R^{-1}B^T P \mathbf{x}$$</div>
+            </div>
+            <div class="card">
+                <h2>6. 数値解法</h2>
+                <h3>6.1 反復法（ニュートン法）</h3>
+                <div class="math-display">$$A_k^T P_{k+1} + P_{k+1} A_k + Q + P_k B R^{-1} B^T P_k = 0$$</div>
+                <p>ここで $A_k = A - BR^{-1}B^T P_k$</p>
+                <h3>6.2 Schur分解法</h3>
+                <p>ハミルトン行列の Schur 分解を利用した数値安定な方法。</p>
+            </div>
+            <div class="card">
+                <h2>7. LQR の性質</h2>
+                <h3>7.1 安定余裕</h3>
+                <ul>
+                    <li>ゲイン余裕：無限大（$K$ を 0.5 から $\infty$ まで変化させても安定）</li>
+                    <li>位相余裕：少なくとも 60°</li>
+                </ul>
+                <h3>7.2 リターン差等式</h3>
+                <div class="math-display">$$[I + K(sI-A)^{-1}B]^T R [I + K(sI-A)^{-1}B] = R + B^T(-sI-A^T)^{-1}Q(sI-A)^{-1}B$$</div>
+            </div>
+            <div class="card">
+                <h2>8. まとめ</h2>
+                <ul>
+                    <li>LQR の最適ゲインは代数リッカチ方程式の解から計算</li>
+                    <li>ハミルトン行列の固有値解析が有効</li>
+                    <li>LQR は優れたロバスト性（ゲイン・位相余裕）を持つ</li>
+                    <li>有限時間問題では微分リッカチ方程式を後退積分</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+        });
+    </script>
+</body>
+</html>

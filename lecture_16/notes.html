@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第16回：まとめ - 制御工学ノート</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #0d1117; --card: #161b22; --accent: #58a6ff; --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #a371f7; --text: #c9d1d9; --dim: #8b949e; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        header { text-align: center; padding: 2rem 0; background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); border-radius: 16px; margin-bottom: 1.5rem; }
+        h1 { font-size: 2.2rem; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; }
+        .subtitle { color: var(--dim); font-size: 1rem; }
+        
+        .content { display: grid; gap: 1.5rem; }
+        .card { background: var(--card); border-radius: 12px; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.1); }
+        .card h2 { color: var(--accent); margin-bottom: 1rem; font-size: 1.4rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; }
+        .card h3 { color: var(--green); margin: 1.5rem 0 1rem 0; font-size: 1.1rem; }
+        .card h4 { color: var(--yellow); margin: 1rem 0 0.5rem 0; font-size: 1rem; }
+        
+        .formula { background: rgba(0,0,0,0.4); padding: 0.8rem; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; margin: 0.5rem 0; border-left: 3px solid var(--accent); }
+        .code-block { background: rgba(0,0,0,0.4); padding: 1rem; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; white-space: pre-line; border-left: 3px solid var(--green); overflow-x: auto; }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+        
+        .relationship-list { list-style: none; }
+        .relationship-list li { padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .relationship-list li:last-child { border-bottom: none; }
+        .relationship-arrow { color: var(--accent); font-weight: bold; margin: 0 0.5rem; }
+        
+        .lecture-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+        .lecture-item { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 1rem; border-left: 3px solid var(--purple); }
+        .lecture-title { color: var(--accent); font-weight: 500; margin-bottom: 0.5rem; }
+        .lecture-content { font-size: 0.9rem; }
+        
+        .flowchart { background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 8px; font-family: 'JetBrains Mono', monospace; }
+        .flowchart-item { margin: 0.5rem 0; padding-left: 1rem; }
+        .flowchart-indent { padding-left: 2rem; }
+        .flowchart-arrow { color: var(--accent); }
+        
+        table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+        th, td { padding: 0.8rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.2); }
+        th { background: rgba(88,166,255,0.1); color: var(--accent); font-weight: 500; }
+        td code { background: rgba(0,0,0,0.4); padding: 0.2rem 0.4rem; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+        
+        .future-topics { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+        .future-item { background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); padding: 1rem; border-radius: 8px; border: 1px solid var(--accent); }
+        .future-title { color: var(--accent); font-weight: 500; margin-bottom: 0.5rem; }
+        
+        .highlight-box { background: rgba(63,185,80,0.1); border-left: 3px solid var(--green); padding: 1rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+        .warning-box { background: rgba(248,81,73,0.1); border-left: 3px solid var(--red); padding: 1rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+        
+        @media (max-width: 768px) { 
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            .lecture-summary { grid-template-columns: 1fr; }
+            .future-topics { grid-template-columns: 1fr; }
+            .container { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第16回：まとめ</h1>
+            <p class="subtitle">制御工学の全体像と総括</p>
+        </header>
+        
+        <div class="content">
+            <!-- 制御系設計の全体像 -->
+            <div class="card">
+                <h2>📋 1. 制御系設計の全体像</h2>
+                
+                <h3>1.1 状態空間法の体系</h3>
+                <div class="code-block">システムモデリング → 解析 → 設計 → 実装
+     ↓              ↓      ↓       ↓
+  状態方程式      安定性   極配置   離散化
+  伝達関数        可制御性  LQR    デジタル制御
+                 可観測性  オブザーバ</div>
+                
+                <h3>1.2 主要な概念の関係</h3>
+                <ul class="relationship-list">
+                    <li><strong>状態空間表現</strong><span class="relationship-arrow">⟷</span><strong>伝達関数</strong>（等価な表現）</li>
+                    <li><strong>極</strong><span class="relationship-arrow">⟷</span><strong>固有値</strong>（安定性を決定）</li>
+                    <li><strong>可制御性</strong><span class="relationship-arrow">⟷</span><strong>可観測性</strong>（双対関係）</li>
+                    <li><strong>LQR</strong><span class="relationship-arrow">⟷</span><strong>カルマンフィルタ</strong>（双対関係）</li>
+                </ul>
+            </div>
+
+            <!-- 各回の要点 -->
+            <div class="card">
+                <h2>📚 2. 各回の要点</h2>
+                <div class="lecture-summary">
+                    <div class="lecture-item">
+                        <div class="lecture-title">第1回：状態空間表現</div>
+                        <div class="lecture-content">
+                            <div class="formula">ẋ = Ax + Bu, y = Cx + Du</div>
+                            多入力多出力、内部状態の記述
+                        </div>
+                    </div>
+                    
+                    <div class="lecture-item">
+                        <div class="lecture-title">第2回：PID制御</div>
+                        <div class="lecture-content">
+                            古典制御の代表、産業界で広く使用
+                            <div class="formula">u = K_p e + K_i ∫e + K_d ė</div>
+                        </div>
+                    </div>
+                    
+                    <div class="lecture-item">
+                        <div class="lecture-title">第3回：状態方程式の解</div>
+                        <div class="lecture-content">
+                            遷移行列 e^At、畳み込み積分
+                            <div class="formula">x(t) = e^At x₀ + ∫₀ᵗ e^A(t-τ) Bu(τ)dτ</div>
+                        </div>
+                    </div>
+                    
+                    <div class="lecture-item">
+                        <div class="lecture-title">第4回：遷移行列の計算</div>
+                        <div class="lecture-content">
+                            ラプラス変換、対角化、ケーリー・ハミルトン、級数展開
+                        </div>
+                    </div>
+                    
+                    <div class="lecture-item">
+                        <div class="lecture-title">第5回：伝達関数と状態空間表現</div>
+                        <div class="lecture-content">
+                            <div class="formula">G(s) = C(sI-A)⁻¹B + D</div>
+                            正準形（可制御、可観測、対角）
+                        </div>
+                    </div>
+                    
+                    <div class="lecture-item">
+                        <div class="lecture-title">第6回：安定性と極</div>
+                        <div class="lecture-content">
+                            <div class="formula">Re(λᵢ) < 0 ⟺ 漸近安定</div>
+                            ラウス・フルビッツ判別法
+                        </div>
+                    </div>
+                    
+                    <div class="lecture-item">
+                        <div class="lecture-title">第7回：リアプノフ方程式</div>
+                        <div class="lecture-content">
+                            <div class="formula">V(x) = xᵀPx が減少 → 安定</div>
+                            <div class="formula">AᵀP + PA = -Q</div>
+                        </div>
+                    </div>
+                    
+                    <div class="lecture-item">
+                        <div class="lecture-title">第8回：可制御性</div>
+                        <div class="lecture-content">
+                            可制御性行列 C = [B AB ⋯]
+                            <div class="formula">rank(C) = n ⟺ 可制御</div>
+                        </div>
+                    </div>
+                    
+                    <div class="lecture-item">
+                        <div class="lecture-title">第9回：可観測性</div>
+                        <div class="lecture-content">
+                            可観測性行列 O = [C; CA; ⋯]ᵀ
+                            <div class="formula">rank(O) = n ⟺ 可観測</div>
+                        </div>
+                    </div>
+                    
+                    <div class="lecture-item">
+                        <div class="lecture-title">第10回：状態フィードバックと極配置</div>
+                        <div class="lecture-content">
+                            <div class="formula">u = -Kx で極を任意に配置</div>
+                            アッカーマンの公式
+                        </div>
+                    </div>
+                    
+                    <div class="lecture-item">
+                        <div class="lecture-title">第11回：オブザーバ</div>
+                        <div class="lecture-content">
+                            <div class="formula">ẋ̂ = Ax̂ + Bu + L(y - Cx̂)</div>
+                            分離定理
+                        </div>
+                    </div>
+                    
+                    <div class="lecture-item">
+                        <div class="lecture-title">第12回：最適レギュレータ</div>
+                        <div class="lecture-content">
+                            <div class="formula">J = ∫(xᵀQx + uᵀRu)dt を最小化</div>
+                            最適ゲイン K = R⁻¹BᵀP
+                        </div>
+                    </div>
+                    
+                    <div class="lecture-item">
+                        <div class="lecture-title">第13回：リッカチ方程式</div>
+                        <div class="lecture-content">
+                            <div class="formula">AᵀP + PA - PBR⁻¹BᵀP + Q = 0</div>
+                            LQRのロバスト性
+                        </div>
+                    </div>
+                    
+                    <div class="lecture-item">
+                        <div class="lecture-title">第14回：カルマンフィルタ</div>
+                        <div class="lecture-content">
+                            最適状態推定
+                            <div class="formula">L = PCᵀRᵥ⁻¹</div>
+                        </div>
+                    </div>
+                    
+                    <div class="lecture-item">
+                        <div class="lecture-title">第15回：サーボシステム</div>
+                        <div class="lecture-content">
+                            目標値追従<br>
+                            内部モデル原理、積分動作
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 設計フローチャート -->
+            <div class="card">
+                <h2>🔄 3. 設計フローチャート</h2>
+                <div class="flowchart">
+1. システムモデリング
+   └─ 物理法則から状態方程式を導出
+
+2. システム解析
+   ├─ 安定性（固有値）
+   ├─ 可制御性（極配置可能か）
+   └─ 可観測性（状態推定可能か）
+
+3. 制御器設計
+   ├─ 極配置法（応答速度を指定）
+   └─ LQR（最適性を考慮）
+
+4. オブザーバ設計（状態が測れない場合）
+   ├─ ルーエンバーガーオブザーバ
+   └─ カルマンフィルタ（ノイズがある場合）
+
+5. サーボ系設計（目標値追従が必要な場合）
+   └─ 積分器の追加
+
+6. 実装
+   ├─ 離散化
+   └─ デジタル制御
+                </div>
+            </div>
+
+            <!-- 重要な定理・公式 -->
+            <div class="card">
+                <h2>📐 4. 重要な定理・公式</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>項目</th>
+                            <th>公式・条件</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>安定性</td>
+                            <td><code>Re(λᵢ) < 0</code></td>
+                        </tr>
+                        <tr>
+                            <td>可制御性</td>
+                            <td><code>rank[B AB ⋯] = n</code></td>
+                        </tr>
+                        <tr>
+                            <td>可観測性</td>
+                            <td><code>rank[C; CA; ⋯]ᵀ = n</code></td>
+                        </tr>
+                        <tr>
+                            <td>LQRゲイン</td>
+                            <td><code>K = R⁻¹BᵀP</code></td>
+                        </tr>
+                        <tr>
+                            <td>カルマンゲイン</td>
+                            <td><code>L = PCᵀRᵥ⁻¹</code></td>
+                        </tr>
+                        <tr>
+                            <td>遷移行列</td>
+                            <td><code>Φ(t) = eᴬᵗ</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 今後の学習 -->
+            <div class="card">
+                <h2>🚀 5. 今後の学習</h2>
+                <div class="future-topics">
+                    <div class="future-item">
+                        <div class="future-title">ロバスト制御</div>
+                        H∞制御、μ解析
+                    </div>
+                    <div class="future-item">
+                        <div class="future-title">非線形制御</div>
+                        フィードバック線形化、スライディングモード
+                    </div>
+                    <div class="future-item">
+                        <div class="future-title">適応制御</div>
+                        パラメータ推定、モデル参照適応
+                    </div>
+                    <div class="future-item">
+                        <div class="future-title">予測制御</div>
+                        MPC（Model Predictive Control）
+                    </div>
+                    <div class="future-item">
+                        <div class="future-title">強化学習との融合</div>
+                        AIと制御理論の組み合わせ
+                    </div>
+                </div>
+            </div>
+
+            <!-- おわりに -->
+            <div class="card">
+                <h2>🎯 6. おわりに</h2>
+                <div class="highlight-box">
+                    <p>制御工学は理論と実践の両面が重要です。</p>
+                    <p>本講義で学んだ状態空間法は、現代制御の基盤となる考え方です。</p>
+                    <p>これらの知識を基に、さらに発展的な制御手法を学んでいってください。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

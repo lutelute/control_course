@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第8回：可制御性 - 制御工学ノート</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+    <style>
+        :root { 
+            --bg: #0d1117; 
+            --card: #161b22; 
+            --accent: #58a6ff; 
+            --green: #3fb950; 
+            --yellow: #d29922; 
+            --red: #f85149; 
+            --purple: #a371f7; 
+            --text: #c9d1d9; 
+            --dim: #8b949e; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans JP', sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            min-height: 100vh; 
+            line-height: 1.6; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        header { 
+            text-align: center; 
+            padding: 2rem 0; 
+            background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); 
+            border-radius: 16px; 
+            margin-bottom: 1.5rem; 
+        }
+        h1 { 
+            font-size: 2.2rem; 
+            background: linear-gradient(135deg, var(--accent), var(--purple)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 0.5rem; 
+        }
+        .subtitle { color: var(--dim); font-size: 1rem; }
+        
+        .content { display: grid; gap: 1.5rem; }
+        .card { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .card h2 { 
+            color: var(--accent); 
+            margin-bottom: 1rem; 
+            font-size: 1.4rem; 
+            border-bottom: 2px solid var(--accent); 
+            padding-bottom: 0.5rem; 
+        }
+        .card h3 { 
+            color: var(--green); 
+            margin: 1.5rem 0 1rem 0; 
+            font-size: 1.1rem; 
+        }
+        .card h4 { 
+            color: var(--yellow); 
+            margin: 1rem 0 0.5rem 0; 
+            font-size: 1rem; 
+        }
+        
+        ul, ol { margin-left: 1.5rem; margin: 1rem 0 1rem 1.5rem; }
+        li { margin: 0.5rem 0; }
+        
+        p { margin: 0.8rem 0; }
+        strong { color: var(--accent); font-weight: 500; }
+        
+        .math-display {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        .highlight-box { 
+            background: rgba(63,185,80,0.1); 
+            border-left: 3px solid var(--green); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        .warning-box { 
+            background: rgba(248,81,73,0.1); 
+            border-left: 3px solid var(--red); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        
+        @media (max-width: 768px) { 
+            .container { padding: 1rem; }
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第8回：可制御性</h1>
+            <p class="subtitle">Controllability</p>
+        </header>
+        
+        <div class="content">
+            <div class="card">
+                <h2>1. 可制御性の定義</h2>
+                <h3>1.1 状態の可制御性</h3>
+                <p>システム $(A, B)$ において、状態 $\mathbf{x}_0$ が <strong>可制御</strong> とは：</p>
+                <p>有限時間 $t_f$ と入力 $\mathbf{u}(t)$ が存在して、$\mathbf{x}(0) = \mathbf{x}_0$ から $\mathbf{x}(t_f) = \mathbf{0}$ へ移動可能</p>
+                <h3>1.2 システムの可制御性</h3>
+                <p>すべての状態が可制御のとき、システムは <strong>完全可制御</strong> と呼ばれます。</p>
+            </div>
+            <div class="card">
+                <h2>2. 可制御性の判定</h2>
+                <h3>2.1 可制御性行列</h3>
+                <div class="math-display">$$\mathcal{C} = \begin{bmatrix} B & AB & A^2B & \cdots & A^{n-1}B \end{bmatrix}$$</div>
+                <p><strong>定理（カルマン）：</strong> $(A, B)$ が可制御 ⟺ $\text{rank}(\mathcal{C}) = n$</p>
+                <h3>2.2 例</h3>
+                <div class="math-display">$$A = \begin{bmatrix} 0 & 1 \\ -2 & -3 \end{bmatrix}, \quad B = \begin{bmatrix} 0 \\ 1 \end{bmatrix}$$</div>
+                <div class="math-display">$$\mathcal{C} = \begin{bmatrix} B & AB \end{bmatrix} = \begin{bmatrix} 0 & 1 \\ 1 & -3 \end{bmatrix}$$</div>
+                <p>$\det(\mathcal{C}) = -1 \neq 0$ なので $\text{rank}(\mathcal{C}) = 2$、可制御。</p>
+            </div>
+            <div class="card">
+                <h2>3. 可制御性のグラム行列</h2>
+                <h3>3.1 定義</h3>
+                <div class="math-display">$$W_c(t) = \int_0^t e^{A\tau}BB^Te^{A^T\tau}d\tau$$</div>
+                <h3>3.2 判定条件</h3>
+                <p>$(A, B)$ が可制御 ⟺ ある $t > 0$ で $W_c(t)$ が正定値</p>
+                <h3>3.3 最小エネルギー制御</h3>
+                <p>$\mathbf{x}(0) = \mathbf{x}_0$ から $\mathbf{x}(t_f) = \mathbf{0}$ への最小エネルギー入力：</p>
+                <div class="math-display">$$\mathbf{u}^*(t) = -B^T e^{A^T(t_f-t)} W_c^{-1}(t_f) e^{At_f} \mathbf{x}_0$$</div>
+            </div>
+            <div class="card">
+                <h2>4. 可制御正準形</h2>
+                <p>可制御なシステムは座標変換により以下の形に変換可能：</p>
+                <div class="math-display">$$A_c = \begin{bmatrix} 0 & 1 & 0 & \cdots & 0 \\ 0 & 0 & 1 & \cdots & 0 \\ \vdots & & & \ddots & \vdots \\ 0 & 0 & 0 & \cdots & 1 \\ -a_n & -a_{n-1} & \cdots & -a_2 & -a_1 \end{bmatrix}, \quad B_c = \begin{bmatrix} 0 \\ 0 \\ \vdots \\ 0 \\ 1 \end{bmatrix}$$</div>
+            </div>
+            <div class="card">
+                <h2>5. 可制御性の物理的意味</h2>
+                <ul>
+                    <li>可制御 = 入力がすべての状態に影響を与えられる</li>
+                    <li>不可制御 = 入力では動かせない状態（モード）が存在</li>
+                    <li>極配置やフィードバック制御には可制御性が必要</li>
+            </div>
+            <div class="card">
+                <h2>6. 可制御部分空間</h2>
+                </ul>
+                <p>不可制御なシステムでは、可制御な部分空間を特定：</p>
+                <div class="math-display">$$\mathcal{R}(\mathcal{C}) = \text{Im}(\mathcal{C})$$</div>
+                <p>この部分空間内の状態のみ制御可能。</p>
+            </div>
+            <div class="card">
+                <h2>7. PBH可制御性テスト</h2>
+                <h3>7.1 固有値条件</h3>
+                <p><strong>定理（Popov-Belevitch-Hautus）：</strong></p>
+                <p>$(A, B)$ が可制御 ⟺ すべての $\lambda \in \mathbb{C}$ に対して</p>
+                <div class="math-display">$$\text{rank}\begin{bmatrix} \lambda I - A & B \end{bmatrix} = n$$</div>
+                <h3>7.2 幾何学的解釈</h3>
+                <p>不可制御モードは $A$ の固有ベクトルで $B$ と直交するもの。</p>
+            </div>
+            <div class="card">
+                <h2>8. 離散時間システムの可制御性</h2>
+                <p>離散時間システム $\mathbf{x}_{k+1} = A_d\mathbf{x}_k + B_d\mathbf{u}_k$ に対しても同様：</p>
+                <div class="math-display">$$\mathcal{C}_d = \begin{bmatrix} B_d & A_dB_d & \cdots & A_d^{n-1}B_d \end{bmatrix}$$</div>
+                <p>$\text{rank}(\mathcal{C}_d) = n$ ⟺ 可制御</p>
+            </div>
+            <div class="card">
+                <h2>9. 可制御性と安定化</h2>
+                <p><strong>定理：</strong> システム $(A, B)$ において、不安定な固有値に対応するモードが可制御ならば、</p>
+                <p>状態フィードバックにより安定化可能（可安定性）。</p>
+            </div>
+            <div class="card">
+                <h2>10. まとめ</h2>
+                <p>| 判定法 | 条件 |</p>
+                <p>|-------|------|</p>
+                <p>| ランク条件 | $\text{rank}(\mathcal{C}) = n$ |</p>
+                <p>| グラム行列 | $W_c(t) > 0$ |</p>
+                <p>| PBHテスト | $\text{rank}[\lambda I - A \; B] = n$ |</p>
+                <ul>
+                    <li>可制御性は状態フィードバック制御の前提条件</li>
+                    <li>可制御性行列 $\mathcal{C}$ のランクで判定</li>
+                    <li>可制御なシステムは可制御正準形に変換可能</li>
+                    <li>不可制御でも不安定モードが可制御なら安定化可能</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+        });
+    </script>
+</body>
+</html>

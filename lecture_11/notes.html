@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第11回：オブザーバ - 制御工学ノート</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+    <style>
+        :root { 
+            --bg: #0d1117; 
+            --card: #161b22; 
+            --accent: #58a6ff; 
+            --green: #3fb950; 
+            --yellow: #d29922; 
+            --red: #f85149; 
+            --purple: #a371f7; 
+            --text: #c9d1d9; 
+            --dim: #8b949e; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans JP', sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            min-height: 100vh; 
+            line-height: 1.6; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        header { 
+            text-align: center; 
+            padding: 2rem 0; 
+            background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); 
+            border-radius: 16px; 
+            margin-bottom: 1.5rem; 
+        }
+        h1 { 
+            font-size: 2.2rem; 
+            background: linear-gradient(135deg, var(--accent), var(--purple)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 0.5rem; 
+        }
+        .subtitle { color: var(--dim); font-size: 1rem; }
+        
+        .content { display: grid; gap: 1.5rem; }
+        .card { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .card h2 { 
+            color: var(--accent); 
+            margin-bottom: 1rem; 
+            font-size: 1.4rem; 
+            border-bottom: 2px solid var(--accent); 
+            padding-bottom: 0.5rem; 
+        }
+        .card h3 { 
+            color: var(--green); 
+            margin: 1.5rem 0 1rem 0; 
+            font-size: 1.1rem; 
+        }
+        .card h4 { 
+            color: var(--yellow); 
+            margin: 1rem 0 0.5rem 0; 
+            font-size: 1rem; 
+        }
+        
+        ul, ol { margin-left: 1.5rem; margin: 1rem 0 1rem 1.5rem; }
+        li { margin: 0.5rem 0; }
+        
+        p { margin: 0.8rem 0; }
+        strong { color: var(--accent); font-weight: 500; }
+        
+        .math-display {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        .highlight-box { 
+            background: rgba(63,185,80,0.1); 
+            border-left: 3px solid var(--green); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        .warning-box { 
+            background: rgba(248,81,73,0.1); 
+            border-left: 3px solid var(--red); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        
+        @media (max-width: 768px) { 
+            .container { padding: 1rem; }
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第11回：オブザーバ</h1>
+            <p class="subtitle">Observer Design</p>
+        </header>
+        
+        <div class="content">
+            <div class="card">
+                <h2>1. オブザーバの必要性</h2>
+                <p>状態フィードバック制御 $\mathbf{u} = -K\mathbf{x}$ には全状態の情報が必要。</p>
+                <p>しかし、通常は出力 $\mathbf{y} = C\mathbf{x}$ のみ測定可能。</p>
+                <p><strong>オブザーバ</strong>：出力の観測から状態を推定する動的システム</p>
+            </div>
+            <div class="card">
+                <h2>2. 同一次元オブザーバ（Luenberger オブザーバ）</h2>
+                <h3>2.1 構造</h3>
+                <div class="math-display">$$\dot{\hat{\mathbf{x}}} = A\hat{\mathbf{x}} + B\mathbf{u} + L(\mathbf{y} - C\hat{\mathbf{x}})$$</div>
+                <p>ここで $\hat{\mathbf{x}}$ は状態の推定値、$L$ はオブザーバゲイン。</p>
+                <h3>2.2 推定誤差のダイナミクス</h3>
+                <p>推定誤差 $\mathbf{e} = \mathbf{x} - \hat{\mathbf{x}}$ について：</p>
+                <div class="math-display">$$\dot{\mathbf{e}} = (A - LC)\mathbf{e}$$</div>
+                <h3>2.3 収束条件</h3>
+                <p>$A - LC$ の固有値がすべて左半平面にあれば $\mathbf{e}(t) \to \mathbf{0}$</p>
+            </div>
+            <div class="card">
+                <h2>3. オブザーバの極配置</h2>
+                <h3>3.1 設計定理</h3>
+                <p><strong>定理：</strong> $(A, C)$ が可観測 ⟺ $L$ により $A - LC$ の極を任意配置可能</p>
+                <h3>3.2 双対性による設計</h3>
+                <p>$(A, C)$ の可観測性 ⟺ $(A^T, C^T)$ の可制御性</p>
+                <p>よって、極配置の双対問題として $L$ を設計可能。</p>
+                <h3>3.3 アッカーマンの公式（SISO系）</h3>
+                <div class="math-display">$$L = \phi(A)\mathcal{O}^{-1}\begin{bmatrix} 0 \\ \vdots \\ 0 \\ 1 \end{bmatrix}$$</div>
+            </div>
+            <div class="card">
+                <h2>4. オブザーバの極の選び方</h2>
+                <h3>4.1 分離定理との関係</h3>
+                <p>制御器とオブザーバの極は独立に設計可能。</p>
+                <h3>4.2 実用的指針</h3>
+                <ul>
+                    <li>オブザーバの極は制御器の極より <strong>3〜5倍</strong> 高速に</li>
+                    <li>ただし、高速すぎるとノイズの増幅が問題に</li>
+            </div>
+            <div class="card">
+                <h2>5. 出力フィードバック制御</h2>
+                </ul>
+                <h3>5.1 構成</h3>
+                <p>```</p>
+                <p>オブザーバ: ẋ̂ = Aẋ̂ + Bu + L(y - Cẋ̂)</p>
+                <p>制御則: u = -Kẋ̂</p>
+                <p>```</p>
+                <h3>5.2 閉ループ系</h3>
+                <div class="math-display">$$\begin{bmatrix} \dot{\mathbf{x}} \\ \dot{\mathbf{e}} \end{bmatrix} = \begin{bmatrix} A-BK & BK \\ 0 & A-LC \end{bmatrix}\begin{bmatrix} \mathbf{x} \\ \mathbf{e} \end{bmatrix}$$</div>
+                <h3>5.3 分離定理</h3>
+                <p>閉ループ極 = 制御器の極 ∪ オブザーバの極</p>
+            </div>
+            <div class="card">
+                <h2>6. 低次元オブザーバ</h2>
+                <h3>6.1 動機</h3>
+                <p>出力で直接観測できる状態は推定不要。</p>
+                <h3>6.2 次元</h3>
+                <p>$n$ 次系で $p$ 個の出力がある場合、$(n-p)$ 次元オブザーバで十分。</p>
+            </div>
+            <div class="card">
+                <h2>7. オブザーバの実装上の注意</h2>
+                <ul>
+                    <li>初期値 $\hat{\mathbf{x}}(0)$ の選び方</li>
+                    <li>サンプリング時間の選定</li>
+                    <li>数値誤差の蓄積</li>
+            </div>
+            <div class="card">
+                <h2>8. まとめ</h2>
+                    <li>オブザーバは出力から状態を推定</li>
+                    <li>$L$ の設計により推定誤差の収束速度を調整</li>
+                    <li>可観測性がオブザーバ設計の前提条件</li>
+                    <li>分離定理により制御器と独立に設計可能</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+        });
+    </script>
+</body>
+</html>

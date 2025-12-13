@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第2回：PID制御 - 制御工学ノート</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+    <style>
+        :root { 
+            --bg: #0d1117; 
+            --card: #161b22; 
+            --accent: #58a6ff; 
+            --green: #3fb950; 
+            --yellow: #d29922; 
+            --red: #f85149; 
+            --purple: #a371f7; 
+            --text: #c9d1d9; 
+            --dim: #8b949e; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans JP', sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            min-height: 100vh; 
+            line-height: 1.6; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        header { 
+            text-align: center; 
+            padding: 2rem 0; 
+            background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); 
+            border-radius: 16px; 
+            margin-bottom: 1.5rem; 
+        }
+        h1 { 
+            font-size: 2.2rem; 
+            background: linear-gradient(135deg, var(--accent), var(--purple)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 0.5rem; 
+        }
+        .subtitle { color: var(--dim); font-size: 1rem; }
+        
+        .content { display: grid; gap: 1.5rem; }
+        .card { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .card h2 { 
+            color: var(--accent); 
+            margin-bottom: 1rem; 
+            font-size: 1.4rem; 
+            border-bottom: 2px solid var(--accent); 
+            padding-bottom: 0.5rem; 
+        }
+        .card h3 { 
+            color: var(--green); 
+            margin: 1.5rem 0 1rem 0; 
+            font-size: 1.1rem; 
+        }
+        .card h4 { 
+            color: var(--yellow); 
+            margin: 1rem 0 0.5rem 0; 
+            font-size: 1rem; 
+        }
+        
+        ul, ol { margin-left: 1.5rem; margin: 1rem 0 1rem 1.5rem; }
+        li { margin: 0.5rem 0; }
+        
+        p { margin: 0.8rem 0; }
+        strong { color: var(--accent); font-weight: 500; }
+        
+        .math-display {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        .highlight-box { 
+            background: rgba(63,185,80,0.1); 
+            border-left: 3px solid var(--green); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        .warning-box { 
+            background: rgba(248,81,73,0.1); 
+            border-left: 3px solid var(--red); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        
+        @media (max-width: 768px) { 
+            .container { padding: 1rem; }
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第2回：PID制御</h1>
+            <p class="subtitle">PID Control</p>
+        </header>
+        
+        <div class="content">
+            <div class="card">
+                <h2>1. はじめに</h2>
+                <p><strong>PID制御</strong> は産業界で最も広く使われているフィードバック制御方式です。その名前は3つの制御動作に由来します：</p>
+                <ul>
+                    <li><strong>P</strong>: Proportional（比例）</li>
+                    <li><strong>I</strong>: Integral（積分）</li>
+                    <li><strong>D</strong>: Derivative（微分）</li>
+            </div>
+            <div class="card">
+                <h2>2. PID制御器の構造</h2>
+                </ul>
+                <h3>2.1 連続時間PID制御器</h3>
+                <p>PID制御器の出力 $u(t)$ は、偏差 $e(t) = r(t) - y(t)$ に対して：</p>
+                <div class="math-display">$$u(t) = K_p e(t) + K_i \int_0^t e(\tau) d\tau + K_d \frac{de(t)}{dt}$$</div>
+                <p>あるいは標準形で：</p>
+                <div class="math-display">$$u(t) = K_p \left( e(t) + \frac{1}{T_i} \int_0^t e(\tau) d\tau + T_d \frac{de(t)}{dt} \right)$$</div>
+                <p>ここで：</p>
+                <ul>
+                    <li>$K_p$：比例ゲイン</li>
+                    <li>$K_i = K_p / T_i$：積分ゲイン</li>
+                    <li>$K_d = K_p T_d$：微分ゲイン</li>
+                    <li>$T_i$：積分時間</li>
+                    <li>$T_d$：微分時間</li>
+                </ul>
+                <h3>2.2 伝達関数表現</h3>
+                <div class="math-display">$$G_{PID}(s) = K_p + \frac{K_i}{s} + K_d s = K_p \left(1 + \frac{1}{T_i s} + T_d s\right)$$</div>
+            </div>
+            <div class="card">
+                <h2>3. 各制御動作の役割</h2>
+                <h3>3.1 P制御（比例制御）</h3>
+                <div class="math-display">$$u_P(t) = K_p e(t)$$</div>
+                <p><strong>特徴：</strong></p>
+                <ul>
+                    <li>偏差に比例した制御入力</li>
+                    <li>即応性が高い</li>
+                    <li><strong>定常偏差</strong> が残る（1型以上のシステムでない限り）</li>
+                </ul>
+                <h3>3.2 I制御（積分制御）</h3>
+                <div class="math-display">$$u_I(t) = K_i \int_0^t e(\tau) d\tau$$</div>
+                <p><strong>特徴：</strong></p>
+                <ul>
+                    <li>偏差の累積に応じた制御入力</li>
+                    <li><strong>定常偏差を除去</strong></li>
+                    <li>応答が遅くなりがち</li>
+                    <li>過大なゲインは <strong>積分器飽和（windup）</strong> を引き起こす</li>
+                </ul>
+                <h3>3.3 D制御（微分制御）</h3>
+                <div class="math-display">$$u_D(t) = K_d \frac{de(t)}{dt}$$</div>
+                <p><strong>特徴：</strong></p>
+                <ul>
+                    <li>偏差の変化率に応じた制御入力</li>
+                    <li><strong>予測制御</strong> 的な効果</li>
+                    <li>オーバーシュートを抑制</li>
+                    <li>ノイズに敏感</li>
+            </div>
+            <div class="card">
+                <h2>4. PIDゲインの効果</h2>
+                </ul>
+                <p>| パラメータ | 立ち上がり時間 | オーバーシュート | 整定時間 | 定常偏差 |</p>
+                <p>|-----------|--------------|----------------|---------|---------|</p>
+                <p>| Kp ↑ | 減少 | 増加 | 変化小 | 減少 |</p>
+                <p>| Ki ↑ | 減少 | 増加 | 増加 | 除去 |</p>
+                <p>| Kd ↑ | 変化小 | 減少 | 減少 | 変化なし |</p>
+            </div>
+            <div class="card">
+                <h2>5. PIDチューニング法</h2>
+                <h3>5.1 ジーグラー・ニコルス法（限界感度法）</h3>
+                <ol>
+                    <li>$K_i = K_d = 0$ として比例制御のみに</li>
+                    <li>$K_p$ を徐々に増加させ、持続振動が発生する $K_{cr}$（限界ゲイン）を見つける</li>
+                    <li>振動周期 $T_{cr}$ を測定</li>
+                    <li>以下の表に従ってPIDゲインを設定</li>
+                </ol>
+                <p>| 制御器 | $K_p$ | $T_i$ | $T_d$ |</p>
+                <p>|-------|-------|-------|-------|</p>
+                <p>| P | $0.5 K_{cr}$ | - | - |</p>
+                <p>| PI | $0.45 K_{cr}$ | $T_{cr}/1.2$ | - |</p>
+                <p>| PID | $0.6 K_{cr}$ | $T_{cr}/2$ | $T_{cr}/8$ |</p>
+                <h3>5.2 ステップ応答法</h3>
+                <p>プロセスのステップ応答から、むだ時間 $L$ と時定数 $T$ を推定：</p>
+                <p>| 制御器 | $K_p$ | $T_i$ | $T_d$ |</p>
+                <p>|-------|-------|-------|-------|</p>
+                <p>| P | $T/(KL)$ | - | - |</p>
+                <p>| PI | $0.9T/(KL)$ | $L/0.3$ | - |</p>
+                <p>| PID | $1.2T/(KL)$ | $2L$ | $0.5L$ |</p>
+            </div>
+            <div class="card">
+                <h2>6. 実装上の考慮事項</h2>
+                <h3>6.1 微分のフィルタリング</h3>
+                <p>純粋な微分はノイズを増幅するため、実用上はローパスフィルタを付加：</p>
+                <div class="math-display">$$G_D(s) = \frac{K_d s}{1 + \tau_f s}$$</div>
+                <h3>6.2 積分器飽和対策（Anti-windup）</h3>
+                <p>制御入力に制限がある場合、積分項が過大になることを防ぐ：</p>
+                <ul>
+                    <li><strong>条件付き積分</strong>: 制御出力が飽和したら積分を停止</li>
+                    <li><strong>バックカルキュレーション</strong>: 飽和時に積分項を補正</li>
+                </ul>
+                <h3>6.3 微分の不連続性対策</h3>
+                <p>目標値のステップ変化による微分項のスパイクを避けるため、微分は出力にのみ適用：</p>
+                <div class="math-display">$$u_D(t) = -K_d \frac{dy(t)}{dt}$$</div>
+            </div>
+            <div class="card">
+                <h2>7. まとめ</h2>
+                <ul>
+                    <li>PID制御は3つの制御動作の組み合わせ</li>
+                    <li>P制御：応答性、I制御：定常偏差除去、D制御：オーバーシュート抑制</li>
+                    <li>チューニング法としてジーグラー・ニコルス法が有名</li>
+                    <li>実装時にはフィルタリングとanti-windupを考慮</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+        });
+    </script>
+</body>
+</html>

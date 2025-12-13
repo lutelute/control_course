@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第1回：システムの状態空間表現 - 制御工学ノート</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+    <style>
+        :root { 
+            --bg: #0d1117; 
+            --card: #161b22; 
+            --accent: #58a6ff; 
+            --green: #3fb950; 
+            --yellow: #d29922; 
+            --red: #f85149; 
+            --purple: #a371f7; 
+            --text: #c9d1d9; 
+            --dim: #8b949e; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans JP', sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            min-height: 100vh; 
+            line-height: 1.6; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        header { 
+            text-align: center; 
+            padding: 2rem 0; 
+            background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); 
+            border-radius: 16px; 
+            margin-bottom: 1.5rem; 
+        }
+        h1 { 
+            font-size: 2.2rem; 
+            background: linear-gradient(135deg, var(--accent), var(--purple)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 0.5rem; 
+        }
+        .subtitle { color: var(--dim); font-size: 1rem; }
+        
+        .content { display: grid; gap: 1.5rem; }
+        .card { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .card h2 { 
+            color: var(--accent); 
+            margin-bottom: 1rem; 
+            font-size: 1.4rem; 
+            border-bottom: 2px solid var(--accent); 
+            padding-bottom: 0.5rem; 
+        }
+        .card h3 { 
+            color: var(--green); 
+            margin: 1.5rem 0 1rem 0; 
+            font-size: 1.1rem; 
+        }
+        .card h4 { 
+            color: var(--yellow); 
+            margin: 1rem 0 0.5rem 0; 
+            font-size: 1rem; 
+        }
+        
+        ul, ol { margin-left: 1.5rem; margin: 1rem 0 1rem 1.5rem; }
+        li { margin: 0.5rem 0; }
+        
+        p { margin: 0.8rem 0; }
+        strong { color: var(--accent); font-weight: 500; }
+        
+        .math-display {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        .highlight-box { 
+            background: rgba(63,185,80,0.1); 
+            border-left: 3px solid var(--green); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        .warning-box { 
+            background: rgba(248,81,73,0.1); 
+            border-left: 3px solid var(--red); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        
+        @media (max-width: 768px) { 
+            .container { padding: 1rem; }
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第1回：システムの状態空間表現</h1>
+            <p class="subtitle">State Space Representation of Dynamic Systems</p>
+        </header>
+        
+        <div class="content">
+            <div class="card">
+                <h2>1. はじめに</h2>
+                <p>制御工学において、システムを数学的に表現する方法は大きく分けて2つあります：</p>
+                <ul>
+                    <li><strong>伝達関数表現</strong>（古典制御）：入出力関係をラプラス変換で記述</li>
+                    <li><strong>状態空間表現</strong>（現代制御）：内部状態を含めて微分方程式で記述</li>
+                </ul>
+                <p>本講義では、状態空間表現を中心に学びます。</p>
+            </div>
+            <div class="card">
+                <h2>2. 状態とは何か</h2>
+                <h3>2.1 状態の定義</h3>
+                <p><strong>状態（state）</strong> とは、システムの過去の履歴をすべて要約し、現在の入力と合わせて将来の挙動を完全に決定できる最小限の情報の集合です。</p>
+                <h3>2.2 状態変数</h3>
+                <p>状態を表す変数を <strong>状態変数（state variables）</strong> と呼び、ベクトルとしてまとめて表記します：</p>
+                <div class="math-display">$$\mathbf{x}(t) = \begin{bmatrix} x_1(t) \\ x_2(t) \\ \vdots \\ x_n(t) \end{bmatrix}$$</div>
+                <p>ここで $n$ は <strong>システムの次数</strong> と呼ばれます。</p>
+            </div>
+            <div class="card">
+                <h2>3. 状態空間表現の基本形</h2>
+                <h3>3.1 連続時間システム</h3>
+                <p>線形時不変（LTI: Linear Time-Invariant）システムの状態空間表現は以下の形式で与えられます：</p>
+                <div class="math-display">$$\dot{\mathbf{x}}(t) = A\mathbf{x}(t) + B\mathbf{u}(t)$$</div>
+                <div class="math-display">$$\mathbf{y}(t) = C\mathbf{x}(t) + D\mathbf{u}(t)$$</div>
+                <p>ここで：</p>
+                <ul>
+                    <li>$\mathbf{x}(t) \in \mathbb{R}^n$：状態ベクトル</li>
+                    <li>$\mathbf{u}(t) \in \mathbb{R}^m$：入力ベクトル</li>
+                    <li>$\mathbf{y}(t) \in \mathbb{R}^p$：出力ベクトル</li>
+                    <li>$A \in \mathbb{R}^{n \times n}$：システム行列（状態行列）</li>
+                    <li>$B \in \mathbb{R}^{n \times m}$：入力行列</li>
+                    <li>$C \in \mathbb{R}^{p \times n}$：出力行列</li>
+                    <li>$D \in \mathbb{R}^{p \times m}$：直達行列</li>
+            </div>
+            <div class="card">
+                <h2>4. 物理システムからの導出例</h2>
+                </ul>
+                <h3>4.1 例1：RLC回路</h3>
+                <p>直列RLC回路を考えます。キルヒホッフの電圧則より：</p>
+                <div class="math-display">$$L\frac{di}{dt} + Ri + \frac{1}{C}\int i \, dt = v(t)$$</div>
+                <p>状態変数として電荷 $q$ と電流 $i$ を選ぶと：</p>
+                <div class="math-display">$$\begin{bmatrix} \dot{q} \\ \dot{i} \end{bmatrix} = \begin{bmatrix} 0 & 1 \\ -\frac{1}{LC} & -\frac{R}{L} \end{bmatrix} \begin{bmatrix} q \\ i \end{bmatrix} + \begin{bmatrix} 0 \\ \frac{1}{L} \end{bmatrix} v$$</div>
+                <h3>4.2 例2：質量-ばね-ダンパ系</h3>
+                <p>運動方程式：$m\ddot{y} + c\dot{y} + ky = f(t)$</p>
+                <p>状態変数 $x_1 = y$、$x_2 = \dot{y}$ とすると：</p>
+                <div class="math-display">$$\begin{bmatrix} \dot{x}_1 \\ \dot{x}_2 \end{bmatrix} = \begin{bmatrix} 0 & 1 \\ -\frac{k}{m} & -\frac{c}{m} \end{bmatrix} \begin{bmatrix} x_1 \\ x_2 \end{bmatrix} + \begin{bmatrix} 0 \\ \frac{1}{m} \end{bmatrix} f$$</div>
+            </div>
+            <div class="card">
+                <h2>5. 状態空間表現の特徴</h2>
+                <h3>5.1 利点</h3>
+                <ol>
+                    <li><strong>多入力多出力（MIMO）システム</strong> を自然に扱える</li>
+                    <li><strong>非線形システム</strong> への拡張が容易</li>
+                    <li><strong>内部状態</strong> の情報が得られる</li>
+                    <li><strong>数値計算</strong> に適している</li>
+                    <li><strong>最適制御</strong> などの高度な設計法との親和性が高い</li>
+                </ol>
+                <h3>5.2 状態変数の非一意性</h3>
+                <p>座標変換 $\mathbf{z} = T\mathbf{x}$ により異なる表現が得られます：</p>
+                <div class="math-display">$$\dot{\mathbf{z}} = TAT^{-1}\mathbf{z} + TB\mathbf{u}$$</div>
+            </div>
+            <div class="card">
+                <h2>6. まとめ</h2>
+                <ul>
+                    <li>状態空間表現は現代制御理論の基礎</li>
+                    <li>システムを $\dot{\mathbf{x}} = A\mathbf{x} + B\mathbf{u}$、$\mathbf{y} = C\mathbf{x} + D\mathbf{u}$ の形式で記述</li>
+                    <li>物理システムから系統的に導出可能</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+        });
+    </script>
+</body>
+</html>

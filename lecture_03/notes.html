@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第3回：状態方程式の解 - 制御工学ノート</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+    <style>
+        :root { 
+            --bg: #0d1117; 
+            --card: #161b22; 
+            --accent: #58a6ff; 
+            --green: #3fb950; 
+            --yellow: #d29922; 
+            --red: #f85149; 
+            --purple: #a371f7; 
+            --text: #c9d1d9; 
+            --dim: #8b949e; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans JP', sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            min-height: 100vh; 
+            line-height: 1.6; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        header { 
+            text-align: center; 
+            padding: 2rem 0; 
+            background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); 
+            border-radius: 16px; 
+            margin-bottom: 1.5rem; 
+        }
+        h1 { 
+            font-size: 2.2rem; 
+            background: linear-gradient(135deg, var(--accent), var(--purple)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 0.5rem; 
+        }
+        .subtitle { color: var(--dim); font-size: 1rem; }
+        
+        .content { display: grid; gap: 1.5rem; }
+        .card { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .card h2 { 
+            color: var(--accent); 
+            margin-bottom: 1rem; 
+            font-size: 1.4rem; 
+            border-bottom: 2px solid var(--accent); 
+            padding-bottom: 0.5rem; 
+        }
+        .card h3 { 
+            color: var(--green); 
+            margin: 1.5rem 0 1rem 0; 
+            font-size: 1.1rem; 
+        }
+        .card h4 { 
+            color: var(--yellow); 
+            margin: 1rem 0 0.5rem 0; 
+            font-size: 1rem; 
+        }
+        
+        ul, ol { margin-left: 1.5rem; margin: 1rem 0 1rem 1.5rem; }
+        li { margin: 0.5rem 0; }
+        
+        p { margin: 0.8rem 0; }
+        strong { color: var(--accent); font-weight: 500; }
+        
+        .math-display {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        .highlight-box { 
+            background: rgba(63,185,80,0.1); 
+            border-left: 3px solid var(--green); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        .warning-box { 
+            background: rgba(248,81,73,0.1); 
+            border-left: 3px solid var(--red); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        
+        @media (max-width: 768px) { 
+            .container { padding: 1rem; }
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第3回：状態方程式の解</h1>
+            <p class="subtitle">Solution of State Equations</p>
+        </header>
+        
+        <div class="content">
+            <div class="card">
+                <h2>1. 問題設定</h2>
+                <p>線形時不変システムの状態方程式：</p>
+                <div class="math-display">$$\dot{\mathbf{x}}(t) = A\mathbf{x}(t) + B\mathbf{u}(t), \quad \mathbf{x}(0) = \mathbf{x}_0$$</div>
+                <p>この初期値問題の解を求めます。</p>
+            </div>
+            <div class="card">
+                <h2>2. 同次方程式の解（自由応答）</h2>
+                <p>入力がない場合 $\mathbf{u}(t) = 0$：</p>
+                <div class="math-display">$$\dot{\mathbf{x}}(t) = A\mathbf{x}(t)$$</div>
+                <h3>2.1 スカラーの場合との類推</h3>
+                <p>スカラー方程式 $\dot{x} = ax$ の解は $x(t) = e^{at}x_0$ です。</p>
+                <p>行列の場合も同様に：</p>
+                <div class="math-display">$$\mathbf{x}(t) = e^{At}\mathbf{x}_0$$</div>
+                <p>ここで $e^{At}$ は <strong>行列指数関数</strong> です。</p>
+                <h3>2.2 行列指数関数の定義</h3>
+                <div class="math-display">$$e^{At} = \sum_{k=0}^{\infty} \frac{(At)^k}{k!} = I + At + \frac{(At)^2}{2!} + \frac{(At)^3}{3!} + \cdots$$</div>
+                <p><strong>性質：</strong></p>
+                <ol>
+                    <li>$e^{A \cdot 0} = I$</li>
+                    <li>$\frac{d}{dt}e^{At} = Ae^{At} = e^{At}A$</li>
+                    <li>$e^{A(t+s)} = e^{At}e^{As}$</li>
+                    <li>$(e^{At})^{-1} = e^{-At}$</li>
+            </div>
+            <div class="card">
+                <h2>3. 非同次方程式の解（強制応答）</h2>
+                </ol>
+                <p>入力がある場合の一般解：</p>
+                <div class="math-display">$$\mathbf{x}(t) = e^{At}\mathbf{x}_0 + \int_0^t e^{A(t-\tau)}B\mathbf{u}(\tau)d\tau$$</div>
+                <p><strong>導出：</strong> 定数変化法を用いて $\mathbf{x}(t) = e^{At}\mathbf{c}(t)$ とおき、微分方程式に代入：</p>
+                <div class="math-display">$$e^{At}\dot{\mathbf{c}}(t) + Ae^{At}\mathbf{c}(t) = Ae^{At}\mathbf{c}(t) + B\mathbf{u}(t)$$</div>
+                <div class="math-display">$$\dot{\mathbf{c}}(t) = e^{-At}B\mathbf{u}(t)$$</div>
+                <p>積分して：</p>
+                <div class="math-display">$$\mathbf{c}(t) = \mathbf{x}_0 + \int_0^t e^{-A\tau}B\mathbf{u}(\tau)d\tau$$</div>
+            </div>
+            <div class="card">
+                <h2>4. 遷移行列</h2>
+                <h3>4.1 定義</h3>
+                <p><strong>状態遷移行列（State Transition Matrix）</strong> $\Phi(t)$ は：</p>
+                <div class="math-display">$$\Phi(t) = e^{At}$$</div>
+                <p>時刻 $t_0$ から $t$ への遷移を表す：</p>
+                <div class="math-display">$$\Phi(t, t_0) = e^{A(t-t_0)}$$</div>
+                <h3>4.2 遷移行列の性質</h3>
+                <ol>
+                    <li><strong>初期条件</strong>: $\Phi(0) = I$</li>
+                    <li><strong>微分方程式を満たす</strong>: $\dot{\Phi}(t) = A\Phi(t)$</li>
+                    <li><strong>半群性</strong>: $\Phi(t_2, t_0) = \Phi(t_2, t_1)\Phi(t_1, t_0)$</li>
+                    <li><strong>逆行列</strong>: $\Phi^{-1}(t, t_0) = \Phi(t_0, t)$</li>
+            </div>
+            <div class="card">
+                <h2>5. 出力の計算</h2>
+                </ol>
+                <p>状態と出力の関係 $\mathbf{y}(t) = C\mathbf{x}(t) + D\mathbf{u}(t)$ より：</p>
+                <div class="math-display">$$\mathbf{y}(t) = Ce^{At}\mathbf{x}_0 + \int_0^t Ce^{A(t-\tau)}B\mathbf{u}(\tau)d\tau + D\mathbf{u}(t)$$</div>
+                <p>初期状態がゼロのとき：</p>
+                <div class="math-display">$$\mathbf{y}(t) = \int_0^t g(t-\tau)\mathbf{u}(\tau)d\tau + D\mathbf{u}(t)$$</div>
+                <p>ここで $g(t) = Ce^{At}B$ は <strong>インパルス応答行列</strong> です。</p>
+            </div>
+            <div class="card">
+                <h2>6. 畳み込み積分</h2>
+                <p>入力 $\mathbf{u}(t)$ に対する出力は畳み込み積分で表現：</p>
+                <div class="math-display">$$\mathbf{y}(t) = (g * \mathbf{u})(t) = \int_0^t g(t-\tau)\mathbf{u}(\tau)d\tau$$</div>
+                <p><strong>ラプラス変換</strong> では：</p>
+                <div class="math-display">$$Y(s) = G(s)U(s)$$</div>
+                <p>ここで $G(s) = C(sI-A)^{-1}B + D$ は伝達関数行列です。</p>
+            </div>
+            <div class="card">
+                <h2>7. 例題</h2>
+                <h3>2次系の解</h3>
+                <div class="math-display">$$A = \begin{bmatrix} 0 & 1 \\ -2 & -3 \end{bmatrix}, \quad \mathbf{x}_0 = \begin{bmatrix} 1 \\ 0 \end{bmatrix}$$</div>
+                <p>固有値：$\lambda_1 = -1, \lambda_2 = -2$</p>
+                <p>遷移行列（対角化により）：</p>
+                <div class="math-display">$$e^{At} = \begin{bmatrix} 2e^{-t} - e^{-2t} & e^{-t} - e^{-2t} \\ -2e^{-t} + 2e^{-2t} & -e^{-t} + 2e^{-2t} \end{bmatrix}$$</div>
+                <p>解：</p>
+                <div class="math-display">$$\mathbf{x}(t) = e^{At}\mathbf{x}_0 = \begin{bmatrix} 2e^{-t} - e^{-2t} \\ -2e^{-t} + 2e^{-2t} \end{bmatrix}$$</div>
+            </div>
+            <div class="card">
+                <h2>8. まとめ</h2>
+                <ul>
+                    <li>状態方程式の解は行列指数関数 $e^{At}$ を用いて表現</li>
+                    <li>自由応答：$\mathbf{x}(t) = e^{At}\mathbf{x}_0$</li>
+                    <li>強制応答：畳み込み積分で計算</li>
+                    <li>遷移行列は状態の時間発展を記述する基本量</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第7回：リアプノフ方程式 - 制御工学ノート</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+    <style>
+        :root { 
+            --bg: #0d1117; 
+            --card: #161b22; 
+            --accent: #58a6ff; 
+            --green: #3fb950; 
+            --yellow: #d29922; 
+            --red: #f85149; 
+            --purple: #a371f7; 
+            --text: #c9d1d9; 
+            --dim: #8b949e; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans JP', sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            min-height: 100vh; 
+            line-height: 1.6; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        header { 
+            text-align: center; 
+            padding: 2rem 0; 
+            background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); 
+            border-radius: 16px; 
+            margin-bottom: 1.5rem; 
+        }
+        h1 { 
+            font-size: 2.2rem; 
+            background: linear-gradient(135deg, var(--accent), var(--purple)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 0.5rem; 
+        }
+        .subtitle { color: var(--dim); font-size: 1rem; }
+        
+        .content { display: grid; gap: 1.5rem; }
+        .card { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .card h2 { 
+            color: var(--accent); 
+            margin-bottom: 1rem; 
+            font-size: 1.4rem; 
+            border-bottom: 2px solid var(--accent); 
+            padding-bottom: 0.5rem; 
+        }
+        .card h3 { 
+            color: var(--green); 
+            margin: 1.5rem 0 1rem 0; 
+            font-size: 1.1rem; 
+        }
+        .card h4 { 
+            color: var(--yellow); 
+            margin: 1rem 0 0.5rem 0; 
+            font-size: 1rem; 
+        }
+        
+        ul, ol { margin-left: 1.5rem; margin: 1rem 0 1rem 1.5rem; }
+        li { margin: 0.5rem 0; }
+        
+        p { margin: 0.8rem 0; }
+        strong { color: var(--accent); font-weight: 500; }
+        
+        .math-display {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        .highlight-box { 
+            background: rgba(63,185,80,0.1); 
+            border-left: 3px solid var(--green); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        .warning-box { 
+            background: rgba(248,81,73,0.1); 
+            border-left: 3px solid var(--red); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        
+        @media (max-width: 768px) { 
+            .container { padding: 1rem; }
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第7回：リアプノフ方程式</h1>
+            <p class="subtitle">Lyapunov Equation</p>
+        </header>
+        
+        <div class="content">
+            <div class="card">
+                <h2>1. リアプノフ安定性理論</h2>
+                <h3>1.1 リアプノフ関数</h3>
+                <p><strong>リアプノフ関数</strong> $V(\mathbf{x})$ は、システムのエネルギーのような量を表す正定値関数です。</p>
+                <p><strong>正定値関数の条件：</strong></p>
+                <ul>
+                    <li>$V(\mathbf{0}) = 0$</li>
+                    <li>$V(\mathbf{x}) > 0$ for all $\mathbf{x} \neq \mathbf{0}$</li>
+                </ul>
+                <h3>1.2 リアプノフの安定定理</h3>
+                <p>システム $\dot{\mathbf{x}} = f(\mathbf{x})$ について：</p>
+                <ol>
+                    <li>$V(\mathbf{x})$ が正定値</li>
+                    <li>$\dot{V}(\mathbf{x}) = \frac{\partial V}{\partial \mathbf{x}} f(\mathbf{x}) \leq 0$ （負準定値）</li>
+                </ol>
+                <p>ならば、原点は <strong>安定</strong>。</p>
+                <p>さらに $\dot{V}(\mathbf{x}) < 0$ （負定値）ならば <strong>漸近安定</strong>。</p>
+            </div>
+            <div class="card">
+                <h2>2. 線形システムのリアプノフ方程式</h2>
+                <h3>2.1 2次形式リアプノフ関数</h3>
+                <p>線形システム $\dot{\mathbf{x}} = A\mathbf{x}$ に対し、2次形式：</p>
+                <div class="math-display">$$V(\mathbf{x}) = \mathbf{x}^T P \mathbf{x}$$</div>
+                <p>ここで $P$ は正定値対称行列。</p>
+                <h3>2.2 時間微分の計算</h3>
+                <div class="math-display">$$\dot{V} = \dot{\mathbf{x}}^T P \mathbf{x} + \mathbf{x}^T P \dot{\mathbf{x}}$$</div>
+                <div class="math-display">$$= \mathbf{x}^T A^T P \mathbf{x} + \mathbf{x}^T P A \mathbf{x}$$</div>
+                <div class="math-display">$$= \mathbf{x}^T (A^T P + P A) \mathbf{x}$$</div>
+                <h3>2.3 リアプノフ方程式</h3>
+                <p>$\dot{V} = -\mathbf{x}^T Q \mathbf{x}$ となるためには：</p>
+                <div class="math-display">$$A^T P + P A = -Q$$</div>
+                <p>これが <strong>連続時間リアプノフ方程式</strong> です。</p>
+                <p><strong>定理：</strong> $A$ が安定（すべての固有値が左半平面）⟺ 任意の正定値 $Q$ に対して一意な正定値解 $P$ が存在</p>
+            </div>
+            <div class="card">
+                <h2>3. リアプノフ方程式の解法</h2>
+                <h3>3.1 ベクトル化による方法</h3>
+                <p>クロネッカー積を用いて行列方程式を連立方程式に変換：</p>
+                <div class="math-display">$$\text{vec}(A^T P + P A) = (I \otimes A^T + A^T \otimes I)\text{vec}(P) = -\text{vec}(Q)$$</div>
+                <h3>3.2 数値解法</h3>
+                <p>MATLAB: `P = lyap(A', Q)`</p>
+                <p>Python (scipy): `P = solve_continuous_lyapunov(A.T, -Q)`</p>
+                <h3>3.3 2次系の解析解</h3>
+                <div class="math-display">$$A = \begin{bmatrix} 0 & 1 \\ -a_0 & -a_1 \end{bmatrix}, \quad Q = I$$</div>
+                <p>リアプノフ方程式を解くと：</p>
+                <div class="math-display">$$P = \begin{bmatrix} \frac{a_0 + a_1^2 + 1}{2a_0 a_1} & \frac{1}{2a_0} \\ \frac{1}{2a_0} & \frac{a_0 + 1}{2a_0 a_1} \end{bmatrix}$$</div>
+            </div>
+            <div class="card">
+                <h2>4. リアプノフ関数の幾何学的解釈</h2>
+                <h3>4.1 等高線（レベルセット）</h3>
+                <div class="math-display">$$V(\mathbf{x}) = c \quad (\text{定数})$$</div>
+                <p>は楕円を描く。$P$ の固有ベクトルが楕円の主軸方向。</p>
+                <h3>4.2 状態軌道とレベルセット</h3>
+                <p>漸近安定ならば、軌道は常により小さなレベルセットへ移動：</p>
+                <div class="math-display">$$\dot{V} < 0 \Rightarrow \text{軌道は内側へ}$$</div>
+            </div>
+            <div class="card">
+                <h2>5. 離散時間リアプノフ方程式</h2>
+                <p>離散時間システム $\mathbf{x}_{k+1} = A\mathbf{x}_k$ に対して：</p>
+                <div class="math-display">$$A^T P A - P = -Q$$</div>
+                <p><strong>安定条件：</strong> すべての固有値の絶対値が1未満</p>
+            </div>
+            <div class="card">
+                <h2>6. 応用：コントローラ設計への利用</h2>
+                <h3>6.1 リアプノフ不等式（LMI）</h3>
+                <p>$A^T P + PA < 0$ を満たす $P > 0$ の存在が安定性と等価。</p>
+                <h3>6.2 $H_\infty$ 制御との関係</h3>
+                <p>リアプノフ方程式は $H_\infty$ ノルムの計算にも使用：</p>
+                <div class="math-display">$$\|G\|_{\infty}^2 < \gamma^2 \Leftrightarrow \exists P > 0: A^T P + PA + \frac{1}{\gamma^2}PBB^T P + C^T C < 0$$</div>
+            </div>
+            <div class="card">
+                <h2>7. まとめ</h2>
+                <ul>
+                    <li>リアプノフ関数は系のエネルギーを一般化した概念</li>
+                    <li>$V = \mathbf{x}^T P \mathbf{x}$ が減少すれば安定</li>
+                    <li>リアプノフ方程式 $A^T P + PA = -Q$ の正定値解の存在が安定性の判定条件</li>
+                    <li>数値的に効率よく解ける（多項式時間）</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+        });
+    </script>
+</body>
+</html>

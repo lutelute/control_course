@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第6回：安定性と極 - 制御工学ノート</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+    <style>
+        :root { 
+            --bg: #0d1117; 
+            --card: #161b22; 
+            --accent: #58a6ff; 
+            --green: #3fb950; 
+            --yellow: #d29922; 
+            --red: #f85149; 
+            --purple: #a371f7; 
+            --text: #c9d1d9; 
+            --dim: #8b949e; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans JP', sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            min-height: 100vh; 
+            line-height: 1.6; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        header { 
+            text-align: center; 
+            padding: 2rem 0; 
+            background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(163,113,247,0.1)); 
+            border-radius: 16px; 
+            margin-bottom: 1.5rem; 
+        }
+        h1 { 
+            font-size: 2.2rem; 
+            background: linear-gradient(135deg, var(--accent), var(--purple)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 0.5rem; 
+        }
+        .subtitle { color: var(--dim); font-size: 1rem; }
+        
+        .content { display: grid; gap: 1.5rem; }
+        .card { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .card h2 { 
+            color: var(--accent); 
+            margin-bottom: 1rem; 
+            font-size: 1.4rem; 
+            border-bottom: 2px solid var(--accent); 
+            padding-bottom: 0.5rem; 
+        }
+        .card h3 { 
+            color: var(--green); 
+            margin: 1.5rem 0 1rem 0; 
+            font-size: 1.1rem; 
+        }
+        .card h4 { 
+            color: var(--yellow); 
+            margin: 1rem 0 0.5rem 0; 
+            font-size: 1rem; 
+        }
+        
+        ul, ol { margin-left: 1.5rem; margin: 1rem 0 1rem 1.5rem; }
+        li { margin: 0.5rem 0; }
+        
+        p { margin: 0.8rem 0; }
+        strong { color: var(--accent); font-weight: 500; }
+        
+        .math-display {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        .highlight-box { 
+            background: rgba(63,185,80,0.1); 
+            border-left: 3px solid var(--green); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        .warning-box { 
+            background: rgba(248,81,73,0.1); 
+            border-left: 3px solid var(--red); 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+        
+        @media (max-width: 768px) { 
+            .container { padding: 1rem; }
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>第6回：安定性と極</h1>
+            <p class="subtitle">Stability and Poles</p>
+        </header>
+        
+        <div class="content">
+            <div class="card">
+                <h2>1. 安定性の概念</h2>
+                <h3>1.1 内部安定性（漸近安定性）</h3>
+                <p>システム $\dot{\mathbf{x}} = A\mathbf{x}$ が <strong>漸近安定</strong> とは：</p>
+                <div class="math-display">$$\lim_{t \to \infty} \mathbf{x}(t) = \mathbf{0} \quad \text{(任意の初期値に対して)}$$</div>
+                <h3>1.2 BIBO安定性</h3>
+                <p><strong>有界入力有界出力（BIBO）安定</strong> とは：</p>
+                <p>任意の有界入力に対して出力も有界</p>
+                <div class="math-display">$$|u(t)| < M_u \quad \Rightarrow \quad |y(t)| < M_y$$</div>
+                <h3>1.3 安定性の関係</h3>
+                <ul>
+                    <li>漸近安定 → BIBO安定（最小実現の場合）</li>
+                    <li>BIBO安定 ↛ 漸近安定（不可観測・不可制御モードがある場合）</li>
+            </div>
+            <div class="card">
+                <h2>2. 固有値と安定性</h2>
+                </ul>
+                <h3>2.1 安定性の判定条件</h3>
+                <p><strong>定理：</strong> 線形時不変システム $\dot{\mathbf{x}} = A\mathbf{x}$ が漸近安定であるための必要十分条件は：</p>
+                <div class="math-display">$$\text{Re}(\lambda_i) < 0 \quad \text{すべての固有値 } \lambda_i \text{ に対して}$$</div>
+                <h3>2.2 固有値の実部と応答</h3>
+                <p>| 固有値の性質 | 応答の挙動 |</p>
+                <p>|------------|----------|</p>
+                <p>| Re(λ) < 0 | 減衰（安定） |</p>
+                <p>| Re(λ) = 0 | 持続振動（臨界安定） |</p>
+                <p>| Re(λ) > 0 | 発散（不安定） |</p>
+                <h3>2.3 複素固有値と振動</h3>
+                <p>$\lambda = \sigma \pm j\omega$ の場合：</p>
+                <ul>
+                    <li>$\sigma < 0$：減衰振動</li>
+                    <li>$\sigma = 0$：持続振動</li>
+                    <li>$\sigma > 0$：発散振動</li>
+                </ul>
+                <p>振動周波数は $\omega$、減衰率は $|\sigma|$ に依存</p>
+            </div>
+            <div class="card">
+                <h2>3. 安定領域と極配置</h2>
+                <h3>3.1 s平面における安定領域</h3>
+                <p>複素平面において：</p>
+                <ul>
+                    <li><strong>左半平面</strong> (LHP: Left Half Plane)：安定領域</li>
+                    <li><strong>虚軸</strong>：臨界安定境界</li>
+                    <li><strong>右半平面</strong> (RHP: Right Half Plane)：不安定領域</li>
+                </ul>
+                <h3>3.2 極と応答特性</h3>
+                <p>極の位置により過渡応答の性質が決まる：</p>
+                <div class="math-display">$$\text{減衰比: } \zeta = \frac{-\sigma}{\sqrt{\sigma^2 + \omega^2}}$$</div>
+                <div class="math-display">$$\text{固有角周波数: } \omega_n = \sqrt{\sigma^2 + \omega^2}$$</div>
+            </div>
+            <div class="card">
+                <h2>4. 特性方程式と代数的安定判別</h2>
+                <h3>4.1 特性方程式</h3>
+                <div class="math-display">$$\det(sI - A) = s^n + a_1 s^{n-1} + \cdots + a_{n-1}s + a_n = 0$$</div>
+                <h3>4.2 安定のための必要条件</h3>
+                <p>すべての係数が正（同符号）：</p>
+                <div class="math-display">$$a_i > 0 \quad (i = 1, 2, \ldots, n)$$</div>
+                <p><strong>注意：</strong> これは必要条件であり、十分条件ではない。</p>
+                <h3>4.3 ラウス・フルビッツの安定判別法</h3>
+                <p>ラウス表を構成し、第1列の符号変化の回数が右半平面の極の数。</p>
+                <p><strong>2次系の場合：</strong> $s^2 + a_1 s + a_2 = 0$</p>
+                <ul>
+                    <li>安定条件：$a_1 > 0$ かつ $a_2 > 0$</li>
+                </ul>
+                <p><strong>3次系の場合：</strong> $s^3 + a_1 s^2 + a_2 s + a_3 = 0$</p>
+                <ul>
+                    <li>安定条件：$a_1 > 0$, $a_2 > 0$, $a_3 > 0$, $a_1 a_2 > a_3$</li>
+            </div>
+            <div class="card">
+                <h2>5. 時間応答と極の関係</h2>
+                </ul>
+                <h3>5.1 支配極</h3>
+                <p>実部の絶対値が最も小さい極が応答を支配。</p>
+                <div class="math-display">$$\text{整定時間} \approx \frac{4}{|\sigma_{\text{dom}}|}$$</div>
+                <h3>5.2 高速極の影響</h3>
+                <p>支配極から十分離れた極は過渡応答への影響が小さい。</p>
+            </div>
+            <div class="card">
+                <h2>6. フィードバックによる安定化</h2>
+                <p>不安定なシステムも状態フィードバック $\mathbf{u} = -K\mathbf{x}$ により安定化可能（可制御性が必要）。</p>
+                <p>閉ループ系：</p>
+                <div class="math-display">$$\dot{\mathbf{x}} = (A - BK)\mathbf{x}$$</div>
+                <p>$K$ の設計により $(A - BK)$ の固有値を左半平面に配置。</p>
+            </div>
+            <div class="card">
+                <h2>7. まとめ</h2>
+                <ul>
+                    <li>漸近安定 ⟺ すべての固有値が左半平面</li>
+                    <li>極の実部が応答の減衰率、虚部が振動周波数を決定</li>
+                    <li>ラウス・フルビッツ法で代数的に安定判別が可能</li>
+                    <li>フィードバックにより極を移動させて安定化</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+        });
+    </script>
+</body>
+</html>
