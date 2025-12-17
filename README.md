@@ -60,9 +60,10 @@ control_course/
 
 ## 🚀 使い方
 
-1. `index.html` をブラウザで開く
-2. 各講義の「📝 ノート」で理論を学習
-3. 「🎮 演習」でインタラクティブに理解を深める
+1. **GitHub Pages**: https://lutelute.github.io/control_course/ でブラウザから直接アクセス
+2. **ローカル**: `index.html` をダウンロードしてブラウザで開く
+3. 各講義の「📝 ノート」で理論を学習
+4. 「🎮 演習」でインタラクティブに理解を深める
 
 ## 💡 前提知識
 
@@ -96,6 +97,10 @@ O = [C; CA; CA²; ...]ᵀ       rank(O) = n ⟺ 可観測
 J = ∫(x'Qx + u'Ru)dt
 K = R⁻¹B'P  (Pはリッカチ方程式の解)
 ```
+
+## 🔗 関連プロジェクト
+
+- **[電力系統安定性解析ツール](https://github.com/lutelute/power-system-stability-analysis)**: 系統分離時のG-Bc平面解析 | [🌐 Live Demo](https://lutelute.github.io/power-system-stability-analysis/)
 
 ## 🔗 発展的な学習
 
